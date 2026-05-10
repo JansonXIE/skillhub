@@ -46,7 +46,15 @@ export function NewSkillModal({ isOpen, onClose }: NewSkillModalProps) {
     setSuccessMsg('');
     
     try {
-      const res = await invoke<string>('clone_github_repo', { url: githubUrl });
+      const savedPath = localStorage.getItem('skillhub-data-path');
+      if (!savedPath) {
+        throw new Error('请先在设置中配置数据目录');
+      }
+
+      const res = await invoke<string>('clone_github_repo', { 
+        url: githubUrl,
+        basePath: savedPath
+      });
       setSuccessMsg(res);
       setTimeout(() => {
         handleClose();
@@ -130,12 +138,12 @@ export function NewSkillModal({ isOpen, onClose }: NewSkillModalProps) {
                 disabled={isLoading}
               />
               <div className="form-helper">
-                请输入仓库根地址。PromptHub 会先扫描仓库中的可导入 SKILL.md，再让你选择要导入的内容。
+                请输入仓库根地址。SkillHub 会先扫描仓库中的可导入 SKILL.md，再让你选择要导入的内容。
               </div>
               
               <div className="info-box">
-                <p>目前只支持仓库根地址，例如 https://github.com/owner/repo</p>
-                <p>如果没有找到 SKILL.md，PromptHub 会回退到仓库根目录的 README.md，并将其作为单个导入候选。</p>
+                <p>目前只支持仓库根地址，例如 https://github.com/owner/skill-repo</p>
+                <p>如果没有找到 SKILL.md，SkillHub 会回退到仓库根目录的 README.md，并将其作为单个导入候选。</p>
               </div>
 
               {errorMsg && <div className="error-text">{errorMsg}</div>}

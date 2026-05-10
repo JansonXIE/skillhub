@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 
 #[tauri::command]
-async fn clone_github_repo(url: String) -> Result<String, String> {
+async fn clone_github_repo(url: String, base_path: String) -> Result<String, String> {
     // Basic validation
     if !url.starts_with("http") {
         return Err("URL must start with http or https".to_string());
@@ -14,7 +14,7 @@ async fn clone_github_repo(url: String) -> Result<String, String> {
     let repo_name = repo_name.trim_end_matches(".git");
 
     // Ensure the `skills` directory exists
-    let skills_dir = Path::new("../skills");
+    let skills_dir = Path::new(&base_path);
     if !skills_dir.exists() {
         if let Err(e) = fs::create_dir_all(skills_dir) {
             return Err(format!("Failed to create skills directory: {}", e));
@@ -39,7 +39,7 @@ async fn clone_github_repo(url: String) -> Result<String, String> {
         return Err(format!("Git clone failed: {}", err_msg));
     }
 
-    Ok(format!("Successfully cloned {} to ../skills/{}", repo_name, repo_name))
+    Ok(format!("Successfully cloned {} to {}", repo_name, dest_path.display()))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
