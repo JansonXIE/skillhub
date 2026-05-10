@@ -1,6 +1,10 @@
-import { Search, Download, Plus, Moon, Command, Box } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Plus, Moon, Box } from 'lucide-react';
+import { NewSkillModal } from './NewSkillModal';
 
 export function Header() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
     <header className="header">
       <div className="segment-control">
@@ -20,15 +24,20 @@ export function Header() {
           />
         </div>
 
-        <button className="btn btn-primary flex items-center gap-2">
+        <button 
+          className="btn btn-primary flex items-center gap-2"
+          onClick={() => setIsModalOpen(true)}
+        >
           <Plus size={16} />
           新建
         </button>
 
-        <button className="btn-icon btn-ghost">
+        <button className="btn btn-icon btn-ghost">
           <Moon size={20} />
         </button>
       </div>
+      
+      <NewSkillModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </header>
   );
 }
