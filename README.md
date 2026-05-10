@@ -1,73 +1,63 @@
-# React + TypeScript + Vite
+# SkillsHub
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+SkillsHub is a modern, TypeScript-based desktop application designed to manage the full lifecycle of skills, from discovery to distribution. Built with **React**, **Vite**, and **Tauri**.
 
-Currently, two official plugins are available:
+## 🚀 Key Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Global Search**: Instantly find skills across multiple registries and repositories.
+- **My Skills**: Manage your local collection of developed or acquired skills.
+- **Bookmarks & Collections**: Save and organize skills from GitHub, Gerrit, or internal warehouses.
+- **Distribution Management**:
+  - **Distributed**: Track skills already submitted to remote repositories.
+  - **Pending**: Identify local skills ready for submission.
+- **Skill Store**: Browse and discover new skills from curated catalogs.
 
-## React Compiler
+## 🛠 Prerequisites
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Before you begin, ensure you have the following installed:
 
-## Expanding the ESLint configuration
+- [Node.js](https://nodejs.org/) (LTS recommended)
+- [Rust](https://www.rust-lang.org/tools/install) (Required for Tauri desktop builds)
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 💻 Getting Started
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 1. Install Dependencies
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+#### Web Environment (Browser)
+```bash
+npm run dev
 ```
+
+#### Desktop Environment (Tauri)
+```bash
+npm run tauri:dev
+```
+
+### 3. Build
+
+#### Web Build
+```bash
+npm run build
+```
+
+#### Desktop Build (Native Executable)
+```bash
+npm run tauri:build
+```
+
+## 🏗 Technology Stack
+
+- **Frontend**: React 19, TypeScript, Vite
+- **Desktop Bridge**: Tauri 2.0
+- **Styling**: Vanilla CSS (Modern CSS features)
+- **Icons**: Lucide React
+
+## 📄 License
+
+MIT
