@@ -5,6 +5,7 @@ import { Favorites } from './pages/Favorites';
 import { Distributed } from './pages/Distributed';
 import { Pending } from './pages/Pending';
 import { Store } from './pages/Store';
+import { Settings } from './pages/Settings';
 import './App.css';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
           <Route path="distributed" element={<Distributed />} />
           <Route path="pending" element={<Pending />} />
           <Route path="store" element={<Store />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </Router>
