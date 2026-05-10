@@ -14,7 +14,7 @@
 - **从 GitHub 安装技能**: 
   - 在新建技能弹窗中增加了“从 GitHub 安装”的专属交互视图。
   - 支持直接在前端输入 GitHub 仓库 URL，调用 Tauri 核心 API 在后台触发下载。
-  - 在 Rust 后端新增 `clone_github_repo` 命令，默认通过 `git clone` 自动将仓库获取到设置中定义的「数据目录」下。
+  - 在 Rust 后端新增 `clone_github_repo` 命令，默认通过 `git clone` 自动将仓库获取到设置中定义的「数据目录」下的 `my_skills` 目录中。
 - **新建技能弹窗**: 实现了全新的“新建技能”对话框，支持多种添加方式。
   - **AI 草稿**: 支持通过描述需求由 AI 生成 SKILL.md。
   - **从 GitHub 安装**: 支持粘贴仓库地址进行安装。

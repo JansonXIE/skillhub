@@ -13,10 +13,10 @@ async fn clone_github_repo(url: String, base_path: String) -> Result<String, Str
     let repo_name = url.split('/').last().unwrap_or("unknown_skill");
     let repo_name = repo_name.trim_end_matches(".git");
 
-    // Ensure the `skills` directory exists
-    let skills_dir = Path::new(&base_path);
+    // Ensure the `my_skills` directory exists within base_path
+    let skills_dir = Path::new(&base_path).join("my_skills");
     if !skills_dir.exists() {
-        if let Err(e) = fs::create_dir_all(skills_dir) {
+        if let Err(e) = fs::create_dir_all(&skills_dir) {
             return Err(format!("Failed to create skills directory: {}", e));
         }
     }
@@ -25,7 +25,7 @@ async fn clone_github_repo(url: String, base_path: String) -> Result<String, Str
     let dest_path = skills_dir.join(repo_name);
     
     if dest_path.exists() {
-        return Err(format!("Skill '{}' already exists in the skills directory.", repo_name));
+        return Err(format!("Skill '{}' already exists in the my_skills directory.", repo_name));
     }
 
     // Run git clone
