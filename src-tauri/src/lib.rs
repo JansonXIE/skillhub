@@ -97,14 +97,32 @@ async fn get_local_skills(data_path: String) -> Result<Vec<SkillInfo>, String> {
         }
     }
     
+    
     Ok(skills)
+}
+
+#[tauri::command]
+async fn get_skill_detail(data_path: String, skill_name: String) -> Result<String, String> {
+    let skill_md_path = Path::new(&data_path)
+        .join("my_skills")
+        .join(&skill_name)
+        .join("SKILL.md");
+
+    if !skill_md_path.exists() {
+        return Err(format!("SKILL.md not found for skill '{}'", skill_name));
+    }
+
+    match fs::read_to_string(&skill_md_path) {
+        Ok(content) => Ok(content),
+        Err(e) => Err(format!("Failed to read SKILL.md: {}", e)),
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![clone_github_repo, get_local_skills])
+    .invoke_handler(tauri::generate_handler![clone_github_repo, get_local_skills, get_skill_detail])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

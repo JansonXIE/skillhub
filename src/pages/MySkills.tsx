@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CheckSquare, LayoutGrid, List, FolderInput, RefreshCw, Box, Download, Star, Trash2 } from 'lucide-react';
 import { EmptyState } from '../components/EmptyState';
 import { invoke } from '@tauri-apps/api/core';
@@ -12,6 +13,7 @@ interface SkillInfo {
 export function MySkills() {
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   const fetchSkills = async () => {
     try {
@@ -78,12 +80,12 @@ export function MySkills() {
       ) : (
         <div className="skills-grid">
           {skills.map((skill, index) => (
-            <div key={index} className="skill-card">
+            <div key={index} className="skill-card hover-pointer" onClick={() => navigate(`/skill/${skill.name}`)}>
               <div className="skill-card-header">
                 <div className="skill-card-icon">
                   {skill.name.charAt(0).toUpperCase()}
                 </div>
-                <div className="skill-card-actions">
+                <div className="skill-card-actions" onClick={(e) => e.stopPropagation()}>
                   <button className="skill-action-btn" title="安装到平台">
                     <Download size={14} />
                   </button>
