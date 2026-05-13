@@ -10,7 +10,7 @@ export function Header() {
       <div className="segment-control">
         <div className="segment-item active">
           <Box size={16} />
-          Skills
+          Skill
         </div>
       </div>
 

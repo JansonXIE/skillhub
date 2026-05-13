@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { appDataDir, join } from '@tauri-apps/api/path';
+import { AIModelSettings } from '../components/settings/AIModelSettings';
 
 const SETTINGS_TABS = [
   { id: 'general', name: '常规设置', icon: SettingsIcon },
@@ -122,7 +123,11 @@ export function Settings() {
           </div>
         )}
         
-        {activeTab !== 'data' && (
+        {activeTab === 'ai' && (
+          <AIModelSettings />
+        )}
+
+        {activeTab !== 'data' && activeTab !== 'ai' && (
           <div className="settings-section empty-section flex items-center justify-center">
             <p className="text-secondary">该设置页面正在开发中...</p>
           </div>

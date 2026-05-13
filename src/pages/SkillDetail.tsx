@@ -7,6 +7,7 @@ import {
   ShieldCheck, Globe, CheckSquare, Download, LayoutGrid, FolderInput
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { AITranslationModal } from '../components/modals/AITranslationModal';
 
 interface PlatformIntegration {
   id: string;
@@ -31,6 +32,8 @@ export function SkillDetail() {
   
   const [installMode, setInstallMode] = useState<'copy' | 'symlink'>('copy');
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set());
+  const [showTranslate, setShowTranslate] = useState(false);
+  const [copiedMD, setCopiedMD] = useState(false);
 
   const filteredContent = useMemo(() => {
     return content.split('\n').filter(line => {
@@ -41,6 +44,12 @@ export function SkillDetail() {
              trimmed !== '---';
     }).join('\n').trim();
   }, [content]);
+
+  const handleCopyMD = () => {
+    navigator.clipboard.writeText(filteredContent);
+    setCopiedMD(true);
+    setTimeout(() => setCopiedMD(false), 2000);
+  };
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -134,9 +143,9 @@ export function SkillDetail() {
         </div>
         
         {/* Tabs */}
-        <div className="flex items-center justify-between border-b border-border">
+        <div className="flex items-center justify-between">
           <div className="flex gap-6">
-            <div className="tab-item active">
+            <div className="tab-item" style={{ borderBottom: 'none', color: 'var(--color-primary)' }}>
               <span className="flex items-center gap-2"><LayoutGrid size={16} /> 预览</span>
             </div>
           </div>
@@ -153,7 +162,7 @@ export function SkillDetail() {
             <div className="preview-section flex flex-col gap-6 overflow-y-auto pr-4 pb-8">
               <div>
                 <h3 className="text-sm font-medium text-secondary mb-3">技能描述</h3>
-                <div className="info-box bg-surface text-main">
+                <div className="info-box bg-surface text-main markdown-body">
                   <p>{description}</p>
                 </div>
               </div>
@@ -162,8 +171,19 @@ export function SkillDetail() {
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-medium text-secondary">技能内容</h3>
                   <div className="flex items-center gap-2">
-                    <button className="skill-action-btn text-sm flex items-center gap-1 px-2 w-auto h-auto"><Globe size={14}/> AI 翻译</button>
-                    <button className="skill-action-btn text-sm flex items-center gap-1 px-2 w-auto h-auto"><CheckSquare size={14}/> 复制 MD</button>
+                    <button 
+                      className="skill-action-btn text-sm flex items-center gap-1 px-2 w-auto h-auto"
+                      onClick={() => setShowTranslate(true)}
+                    >
+                      <Globe size={14}/> AI 翻译
+                    </button>
+                    <button 
+                      className={`skill-action-btn text-sm flex items-center gap-1 px-2 w-auto h-auto ${copiedMD ? 'text-primary' : ''}`}
+                      onClick={handleCopyMD}
+                    >
+                      {copiedMD ? <ShieldCheck size={14}/> : <CheckSquare size={14}/>}
+                      {copiedMD ? '已复制' : '复制 MD'}
+                    </button>
                   </div>
                 </div>
                 <div className="info-box bg-surface markdown-body">
@@ -198,7 +218,7 @@ export function SkillDetail() {
 
                 <p className="text-xs text-secondary mb-6 leading-relaxed">
                   {installMode === 'copy' 
-                    ? '复制：将 SKILL.md 文件复制到每个平台目录。各副本独立互不影响，在 PromptHub 中编辑后不会自动同步。'
+                    ? '复制：将 SKILL.md 文件复制到每个平台目录。各副本独立互不影响，在 SkillHub 中编辑后不会自动同步。'
                     : '软链接：在目标目录创建指向此 SKILL.md 的链接。任何修改都会实时同步。'}
                 </p>
 
@@ -251,6 +271,13 @@ export function SkillDetail() {
           </div>
         )}
       </div>
+
+      {/* AI Translation Modal */}
+      <AITranslationModal 
+        isOpen={showTranslate}
+        onClose={() => setShowTranslate(false)}
+        sourceContent={filteredContent}
+      />
     </div>
   );
 }
