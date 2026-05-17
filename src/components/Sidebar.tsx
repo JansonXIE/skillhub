@@ -23,6 +23,7 @@ const BOTTOM_LINKS = [
 
 export function Sidebar() {
   const [mySkillsCount, setMySkillsCount] = useState(0);
+  const [favoritesCount, setFavoritesCount] = useState(0);
 
   const fetchSkillsCount = async () => {
     try {
@@ -33,6 +34,13 @@ export function Sidebar() {
       }
       const result: SkillInfo[] = await invoke('get_local_skills', { dataPath });
       setMySkillsCount(result.length);
+
+      // Load favorites
+      const stored = localStorage.getItem('skillhub-favorites');
+      const favoritesList: string[] = stored ? JSON.parse(stored) : [];
+      // Filter count to only exist in local skills to prevent ghost badges
+      const actualFavorites = result.filter(skill => favoritesList.includes(skill.name));
+      setFavoritesCount(actualFavorites.length);
     } catch (error) {
       console.error('Failed to fetch skills count:', error);
     }
@@ -41,8 +49,10 @@ export function Sidebar() {
   useEffect(() => {
     fetchSkillsCount();
     window.addEventListener('skills-updated', fetchSkillsCount);
+    window.addEventListener('favorites-updated', fetchSkillsCount);
     return () => {
       window.removeEventListener('skills-updated', fetchSkillsCount);
+      window.removeEventListener('favorites-updated', fetchSkillsCount);
     };
   }, []);
 
@@ -66,7 +76,10 @@ export function Sidebar() {
               {item.name === '我的 Skills' && (
                 <span className="badge">{mySkillsCount}</span>
               )}
-              {item.name !== '我的 Skills' && item.count !== undefined && (
+              {item.name === '收藏' && (
+                <span className="badge">{favoritesCount}</span>
+              )}
+              {item.name !== '我的 Skills' && item.name !== '收藏' && item.count !== undefined && (
                 <span className="badge">{item.count}</span>
               )}
             </NavLink>

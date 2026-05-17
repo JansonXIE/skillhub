@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { 
-  ArrowLeft, ShieldCheck, Globe, CheckSquare, Download, LayoutGrid
+  ArrowLeft, ShieldCheck, Globe, CheckSquare, Download, LayoutGrid, Star
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { AITranslationModal } from '../components/modals/AITranslationModal';
@@ -22,6 +22,54 @@ export function SkillDetail() {
   const [showTranslate, setShowTranslate] = useState(false);
   const [copiedMD, setCopiedMD] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  const checkFavoriteStatus = () => {
+    if (!skillName) return;
+    const stored = localStorage.getItem('skillhub-favorites');
+    if (stored) {
+      try {
+        const currentFavorites: string[] = JSON.parse(stored);
+        setIsFavorite(currentFavorites.includes(skillName));
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      setIsFavorite(false);
+    }
+  };
+
+  const toggleFavorite = () => {
+    if (!skillName) return;
+    const stored = localStorage.getItem('skillhub-favorites');
+    let currentFavorites: string[] = [];
+    if (stored) {
+      try {
+        currentFavorites = JSON.parse(stored);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    
+    let newFavorites: string[];
+    if (currentFavorites.includes(skillName)) {
+      newFavorites = currentFavorites.filter(name => name !== skillName);
+    } else {
+      newFavorites = [...currentFavorites, skillName];
+    }
+    
+    localStorage.setItem('skillhub-favorites', JSON.stringify(newFavorites));
+    setIsFavorite(newFavorites.includes(skillName));
+    window.dispatchEvent(new CustomEvent('favorites-updated'));
+  };
+
+  useEffect(() => {
+    checkFavoriteStatus();
+    window.addEventListener('favorites-updated', checkFavoriteStatus);
+    return () => {
+      window.removeEventListener('favorites-updated', checkFavoriteStatus);
+    };
+  }, [skillName]);
 
   const displayPlatforms = useMemo(() => {
     return ALL_PLATFORMS.filter(p => platformSettings.enabledPlatforms.includes(p.id));
@@ -174,7 +222,21 @@ export function SkillDetail() {
               {skillName?.charAt(0).toUpperCase()}
             </div>
             <div>
-              <h1 className="text-h2 text-primary">{skillName}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-h2 text-primary">{skillName}</h1>
+                <button 
+                  className="skill-action-btn focus:outline-none" 
+                  title={isFavorite ? "取消收藏" : "添加收藏"}
+                  onClick={toggleFavorite}
+                  style={{ outline: 'none', border: 'none', background: 'transparent', padding: '4px', display: 'flex', alignItems: 'center' }}
+                >
+                  <Star 
+                    size={18} 
+                    fill={isFavorite ? "var(--color-primary)" : "none"}
+                    style={{ color: isFavorite ? "var(--color-primary)" : "currentColor", cursor: 'pointer' }}
+                  />
+                </button>
+              </div>
             </div>
           </div>
         </div>

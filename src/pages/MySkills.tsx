@@ -14,6 +14,7 @@ interface SkillInfo {
 export function MySkills() {
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [favorites, setFavorites] = useState<string[]>([]);
   const navigate = useNavigate();
 
   const fetchSkills = async () => {
@@ -33,6 +34,43 @@ export function MySkills() {
     }
   };
 
+  const loadFavorites = () => {
+    const stored = localStorage.getItem('skillhub-favorites');
+    if (stored) {
+      try {
+        setFavorites(JSON.parse(stored));
+      } catch (e) {
+        console.error('Failed to parse favorites', e);
+      }
+    } else {
+      setFavorites([]);
+    }
+  };
+
+  const toggleFavorite = (e: React.MouseEvent, skillName: string) => {
+    e.stopPropagation();
+    const stored = localStorage.getItem('skillhub-favorites');
+    let currentFavorites: string[] = [];
+    if (stored) {
+      try {
+        currentFavorites = JSON.parse(stored);
+      } catch (e) {
+        console.error('Failed to parse favorites', e);
+      }
+    }
+    
+    let newFavorites: string[];
+    if (currentFavorites.includes(skillName)) {
+      newFavorites = currentFavorites.filter(name => name !== skillName);
+    } else {
+      newFavorites = [...currentFavorites, skillName];
+    }
+    
+    localStorage.setItem('skillhub-favorites', JSON.stringify(newFavorites));
+    setFavorites(newFavorites);
+    window.dispatchEvent(new CustomEvent('favorites-updated'));
+  };
+
   const handleDelete = async (e: React.MouseEvent, skillName: string) => {
     e.stopPropagation();
     try {
@@ -43,6 +81,22 @@ export function MySkills() {
       }
 
       await invoke('delete_local_skill', { dataPath, skillName });
+      
+      // Auto remove from favorites if deleted
+      const stored = localStorage.getItem('skillhub-favorites');
+      if (stored) {
+        try {
+          const currentFavorites: string[] = JSON.parse(stored);
+          if (currentFavorites.includes(skillName)) {
+            const newFavorites = currentFavorites.filter(name => name !== skillName);
+            localStorage.setItem('skillhub-favorites', JSON.stringify(newFavorites));
+            window.dispatchEvent(new CustomEvent('favorites-updated'));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
       window.dispatchEvent(new CustomEvent('skills-updated'));
     } catch (error: any) {
       console.error('Failed to delete skill:', error);
@@ -51,9 +105,12 @@ export function MySkills() {
 
   useEffect(() => {
     fetchSkills();
+    loadFavorites();
     window.addEventListener('skills-updated', fetchSkills);
+    window.addEventListener('favorites-updated', loadFavorites);
     return () => {
       window.removeEventListener('skills-updated', fetchSkills);
+      window.removeEventListener('favorites-updated', loadFavorites);
     };
   }, []);
 
@@ -110,8 +167,17 @@ export function MySkills() {
                   <button className="skill-action-btn" title="安装到平台">
                     <Download size={14} />
                   </button>
-                  <button className="skill-action-btn" title="添加收藏">
-                    <Star size={14} />
+                  <button 
+                    className="skill-action-btn focus:outline-none" 
+                    title={favorites.includes(skill.name) ? "取消收藏" : "添加收藏"} 
+                    onClick={(e) => toggleFavorite(e, skill.name)}
+                    style={{ outline: 'none' }}
+                  >
+                    <Star 
+                      size={14} 
+                      fill={favorites.includes(skill.name) ? "var(--color-primary)" : "none"}
+                      style={{ color: favorites.includes(skill.name) ? "var(--color-primary)" : "currentColor" }}
+                    />
                   </button>
                   <button className="skill-action-btn skill-action-btn--danger" title="删除" onClick={(e) => handleDelete(e, skill.name)}>
                     <Trash2 size={14} />
