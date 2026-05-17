@@ -1,5 +1,12 @@
 # 更新日志 (CHANGELOG)
 
+## [0.2.2] - 2026-05-18
+
+### 修复
+- **Tauri 构建安装包失败修复**:
+  - 将 `tauri.conf.json` 中的 `identifier` 从默认值 `com.tauri.dev` 更改为 `com.skillshub.desktop`，解决了 `npm run tauri:build` 编译安装包时因 bundle identifier 不唯一而报错的问题。
+
+
 ## [0.2.1] - 2026-05-17
 
 ### 新增
