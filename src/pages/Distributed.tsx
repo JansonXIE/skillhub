@@ -78,7 +78,7 @@ export function Distributed() {
       ) : (
         <div className="skills-grid">
           {skills.map((skill, index) => (
-            <div key={index} className="skill-card hover-pointer group" onClick={() => navigate(`/skill/${skill.name}`)}>
+            <div key={index} className="skill-card group" style={{ cursor: 'default' }}>
               <div className="skill-card-header">
                 <div className="skill-card-icon">
                   {skill.name.charAt(0).toUpperCase()}
@@ -91,9 +91,38 @@ export function Distributed() {
                 {skill.description || '暂无描述'}
               </p>
               
-              <div className="mt-auto pt-3 border-t border-border/50 flex items-center gap-1.5 text-xs text-secondary">
-                <Server size={12} />
-                <span className="truncate" title={skill.meta.repoUrl}>
+              <div style={{
+                marginTop: 'auto',
+                paddingTop: '12px',
+                borderTop: '1px solid #f1f5f9',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                width: '100%',
+                overflow: 'hidden',
+              }}>
+                <Server size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                <span style={{ 
+                  color: '#94a3b8', 
+                  fontWeight: '600', 
+                  flexShrink: 0,
+                  fontSize: '11px',
+                  letterSpacing: '0.02em'
+                }}>
+                  已分发至:
+                </span>
+                <span 
+                  title={skill.meta.repoUrl} 
+                  style={{ 
+                    color: '#3b82f6', 
+                    fontWeight: '500',
+                    fontSize: '12px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1
+                  }}
+                >
                   {skill.meta.repoUrl}
                 </span>
               </div>

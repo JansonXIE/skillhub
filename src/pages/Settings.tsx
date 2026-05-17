@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Settings as SettingsIcon, Monitor, Database, 
   Cpu, Sparkles, Keyboard, Globe, Bell, Key, Info, 
-  Folder, ExternalLink
+  Folder, ExternalLink, UploadCloud
 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { appDataDir, join } from '@tauri-apps/api/path';
@@ -15,7 +15,7 @@ const SETTINGS_TABS = [
   { id: 'data', name: '数据设置', icon: Database },
   { id: 'ai', name: 'AI 模型', icon: Cpu },
   { id: 'skill', name: 'Skill', icon: Sparkles },
-  { id: 'repo', name: 'skill 仓库', icon: Sparkles },
+  { id: 'repo', name: 'skill 仓库', icon: UploadCloud },
   { id: 'about', name: '关于', icon: Info },
 ];
 

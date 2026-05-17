@@ -139,9 +139,7 @@ export function AIModelSettings() {
   return (
     <div className="settings-section fade-in">
       <h2 className="settings-title">AI 模型</h2>
-      <div className="ai-model-header-row">
-        <span className="ai-model-breadcrumb">已配置账户 / 端点</span>
-      </div>
+      <h3 className="settings-subtitle">已配置账户 / 端点</h3>
 
       <div className="ai-endpoints-list">
         {endpoints.map(endpoint => (

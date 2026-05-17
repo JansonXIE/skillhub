@@ -138,23 +138,21 @@ export function RepoSettings() {
 
   return (
     <div className="settings-section fade-in max-w-4xl">
-      <div className="mb-8">
-        <h2 className="settings-title mb-2 text-2xl font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>代码仓库设置</h2>
-        <p className="text-secondary">配置用于保存 Skill 目录的 GitHub 或 Gerrit 仓库</p>
-      </div>
+      <h2 className="settings-title">代码仓库设置</h2>
+      <h3 className="settings-subtitle">配置用于保存 Skill 目录的 GitHub 或 Gerrit 仓库</h3>
 
-      <div className="space-y-4">
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
         {repos.map((repo) => (
-          <div key={repo.id} className="settings-card flex items-center justify-between group" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)' }}>
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center text-primary">
-                {isGithub(repo.url) ? <GitBranch size={20} /> : <Server size={20} />}
+          <div key={repo.id} className="settings-card flex items-center justify-between group" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)', marginBottom: '16px' }}>
+            <div className="flex items-center">
+              <div className="settings-card-icon">
+                {isGithub(repo.url) ? <GitBranch size={20} className="text-secondary" /> : <Server size={20} className="text-secondary" />}
               </div>
-              <div>
-                <h3 className="font-medium text-[var(--color-text)]">{repo.name}</h3>
-                <div className="flex items-center gap-3 text-sm text-secondary mt-1">
-                  <span className="truncate max-w-[300px]" title={repo.url}>{repo.url}</span>
-                  <span className="px-2 py-0.5 rounded-full bg-secondary/10 text-xs">
+              <div className="settings-card-info">
+                <div className="settings-card-title">{repo.name}</div>
+                <div className="settings-card-desc flex items-center gap-3 mt-1" style={{ display: 'flex', alignItems: 'center' }}>
+                  <span className="truncate max-w-[400px]" title={repo.url}>{repo.url}</span>
+                  <span className="px-2 py-0.5 rounded-full bg-secondary/10 text-xs" style={{ color: 'var(--text-secondary)', display: 'inline-block', fontSize: '11px' }}>
                     {repo.branch}
                   </span>
                 </div>
@@ -187,7 +185,7 @@ export function RepoSettings() {
         )}
 
         {repos.length > 0 && !isAdding && (
-          <div className="flex justify-center mt-6">
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '28px', marginBottom: '12px' }}>
             <button 
               className="btn btn-primary flex items-center gap-2 px-6 py-2 rounded-lg shadow-sm focus:outline-none"
               onClick={() => setIsAdding(true)}
