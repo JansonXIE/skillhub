@@ -270,6 +270,96 @@ async fn batch_install_skill(data_path: String, skill_name: String, targets: Vec
 }
 
 
+fn get_cache_dir() -> Result<std::path::PathBuf, String> {
+    if let Ok(home) = std::env::var("USERPROFILE") {
+        Ok(Path::new(&home).join(".github-skills-repo"))
+    } else if let Ok(home) = std::env::var("HOME") {
+        Ok(Path::new(&home).join(".github-skills-repo"))
+    } else {
+        Err("Could not find home directory".to_string())
+    }
+}
+
+fn run_git_cmd(args: &[&str], cwd: Option<&Path>) -> Result<String, String> {
+    let mut cmd = Command::new("git");
+    cmd.args(args);
+    if let Some(dir) = cwd {
+        cmd.current_dir(dir);
+    }
+    
+    let output = cmd.output().map_err(|e| format!("Failed to execute git {:?}: {}", args, e))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    
+    if !output.status.success() {
+        return Err(format!("Git command failed: {}\n{}", args.join(" "), stderr));
+    }
+    Ok(stdout)
+}
+
+#[tauri::command]
+async fn prepare_skill_commit(data_path: String, skill_name: String, repo_url: String, branch: String) -> Result<String, String> {
+    let source_dir = Path::new(&data_path).join("my_skills").join(&skill_name);
+    if !source_dir.exists() {
+        return Err(format!("Local skill {} does not exist", skill_name));
+    }
+
+    let cache_dir = get_cache_dir()?;
+    
+    // 1. Init cache dir if not exists
+    if !cache_dir.exists() {
+        run_git_cmd(&["clone", "--filter=blob:none", "--sparse", &repo_url, cache_dir.to_str().unwrap()], None)?;
+    }
+    
+    // 2. Pull latest
+    run_git_cmd(&["pull", "origin", &branch], Some(&cache_dir))?;
+    
+    // 3. Sparse checkout add skill_name
+    run_git_cmd(&["sparse-checkout", "add", &skill_name], Some(&cache_dir))?;
+    
+    // 4. Copy files
+    let target_dir = cache_dir.join(&skill_name);
+    if target_dir.exists() {
+        if let Err(e) = fs::remove_dir_all(&target_dir) {
+            return Err(format!("Failed to remove old target dir: {}", e));
+        }
+    }
+    
+    if let Err(e) = copy_dir_all(&source_dir, &target_dir) {
+        return Err(format!("Failed to copy skill files: {}", e));
+    }
+    
+    // 5. Git add
+    run_git_cmd(&["add", "."], Some(&cache_dir))?;
+    
+    // 6. Check status and get diff
+    let status = run_git_cmd(&["status", "--porcelain"], Some(&cache_dir))?;
+    if status.trim().is_empty() {
+        return Ok("".to_string()); // empty diff means no changes
+    }
+    
+    // Return git diff --cached
+    let diff = run_git_cmd(&["diff", "--cached"], Some(&cache_dir))?;
+    Ok(diff)
+}
+
+#[tauri::command]
+async fn commit_and_push_skill(repo_url: String, branch: String, commit_message: String) -> Result<String, String> {
+    let _ = repo_url;
+    let cache_dir = get_cache_dir()?;
+    if !cache_dir.exists() {
+        return Err("Cache dir not found, did you call prepare first?".to_string());
+    }
+
+    // 7. Git commit
+    run_git_cmd(&["commit", "-m", &commit_message], Some(&cache_dir))?;
+    
+    // 8. Git push
+    run_git_cmd(&["push", "origin", &branch], Some(&cache_dir))?;
+
+    Ok("Successfully pushed".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -277,7 +367,7 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
         clone_github_repo, get_local_skills, get_skill_detail, 
         create_local_skill, import_local_skill, delete_local_skill,
-        batch_install_skill
+        batch_install_skill, prepare_skill_commit, commit_and_push_skill
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {

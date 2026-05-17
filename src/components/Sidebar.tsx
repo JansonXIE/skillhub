@@ -10,9 +10,9 @@ interface SkillInfo {
 
 const NAV_ITEMS = [
   { name: '我的 Skills', icon: Box, path: '/' },
-  { name: '收藏', icon: Star, path: '/favorites', count: 0 },
-  { name: '已分发', icon: Globe, path: '/distributed', count: 0 },
-  { name: '待分发', icon: Clock, path: '/pending', count: 0 },
+  { name: '收藏', icon: Star, path: '/favorites' },
+  { name: '已分发', icon: Globe, path: '/distributed' },
+  { name: '待分发', icon: Clock, path: '/pending' },
   { name: 'Skill 商店', icon: Store, path: '/store' },
 ];
 
@@ -24,6 +24,8 @@ const BOTTOM_LINKS = [
 export function Sidebar() {
   const [mySkillsCount, setMySkillsCount] = useState(0);
   const [favoritesCount, setFavoritesCount] = useState(0);
+  const [distributedCount, setDistributedCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const fetchSkillsCount = async () => {
     try {
@@ -38,9 +40,19 @@ export function Sidebar() {
       // Load favorites
       const stored = localStorage.getItem('skillhub-favorites');
       const favoritesList: string[] = stored ? JSON.parse(stored) : [];
-      // Filter count to only exist in local skills to prevent ghost badges
       const actualFavorites = result.filter(skill => favoritesList.includes(skill.name));
       setFavoritesCount(actualFavorites.length);
+
+      // Load distributed
+      const storedDistributed = localStorage.getItem('skillhub-distributed');
+      const distributedList: { name: string }[] = storedDistributed ? JSON.parse(storedDistributed) : [];
+      const distributedNames = distributedList.map(d => d.name);
+      
+      const actualDistributed = result.filter(skill => distributedNames.includes(skill.name));
+      setDistributedCount(actualDistributed.length);
+      
+      // Pending = total - distributed
+      setPendingCount(result.length - actualDistributed.length);
     } catch (error) {
       console.error('Failed to fetch skills count:', error);
     }
@@ -50,9 +62,11 @@ export function Sidebar() {
     fetchSkillsCount();
     window.addEventListener('skills-updated', fetchSkillsCount);
     window.addEventListener('favorites-updated', fetchSkillsCount);
+    window.addEventListener('distributed-updated', fetchSkillsCount);
     return () => {
       window.removeEventListener('skills-updated', fetchSkillsCount);
       window.removeEventListener('favorites-updated', fetchSkillsCount);
+      window.removeEventListener('distributed-updated', fetchSkillsCount);
     };
   }, []);
 
@@ -79,8 +93,11 @@ export function Sidebar() {
               {item.name === '收藏' && (
                 <span className="badge">{favoritesCount}</span>
               )}
-              {item.name !== '我的 Skills' && item.name !== '收藏' && item.count !== undefined && (
-                <span className="badge">{item.count}</span>
+              {item.name === '已分发' && (
+                <span className="badge">{distributedCount}</span>
+              )}
+              {item.name === '待分发' && (
+                <span className="badge">{pendingCount}</span>
               )}
             </NavLink>
           );
