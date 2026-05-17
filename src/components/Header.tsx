@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Moon, Box } from 'lucide-react';
+import { Search, Plus, Box } from 'lucide-react';
 import { NewSkillModal } from './NewSkillModal';
 import { AIReviewModal } from './modals/AIReviewModal';
 
@@ -34,9 +34,6 @@ export function Header() {
           新建
         </button>
 
-        <button className="btn btn-icon btn-ghost">
-          <Moon size={20} />
-        </button>
       </div>
       
       <NewSkillModal 

@@ -8,17 +8,12 @@ import {
 import { open } from '@tauri-apps/plugin-dialog';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { AIModelSettings } from '../components/settings/AIModelSettings';
+import { SkillSettings } from '../components/settings/SkillSettings';
 
 const SETTINGS_TABS = [
-  { id: 'general', name: '常规设置', icon: SettingsIcon },
-  { id: 'display', name: '显示设置', icon: Monitor },
   { id: 'data', name: '数据设置', icon: Database },
   { id: 'ai', name: 'AI 模型', icon: Cpu },
   { id: 'skill', name: 'Skill', icon: Sparkles },
-  { id: 'shortcuts', name: '快捷键', icon: Keyboard },
-  { id: 'language', name: '语言', icon: Globe },
-  { id: 'notifications', name: '通知', icon: Bell },
-  { id: 'security', name: '安全', icon: Key },
   { id: 'about', name: '关于', icon: Info },
 ];
 
@@ -127,7 +122,11 @@ export function Settings() {
           <AIModelSettings />
         )}
 
-        {activeTab !== 'data' && activeTab !== 'ai' && (
+        {activeTab === 'skill' && (
+          <SkillSettings />
+        )}
+
+        {activeTab !== 'data' && activeTab !== 'ai' && activeTab !== 'skill' && (
           <div className="settings-section empty-section flex items-center justify-center">
             <p className="text-secondary">该设置页面正在开发中...</p>
           </div>

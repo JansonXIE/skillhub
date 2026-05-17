@@ -9,6 +9,12 @@ pub struct SkillInfo {
     pub description: Option<String>,
 }
 
+#[derive(Deserialize)]
+pub struct InstallTarget {
+    pub platform_id: String,
+    pub target_path: String,
+}
+
 #[tauri::command]
 async fn clone_github_repo(url: String, base_path: String) -> Result<String, String> {
     // Basic validation
@@ -209,12 +215,70 @@ async fn delete_local_skill(data_path: String, skill_name: String) -> Result<Str
     Ok(format!("Successfully deleted skill {}", skill_name))
 }
 
+fn expand_env_vars(path: &str) -> String {
+    let mut expanded = path.to_string();
+    if expanded.contains("%USERPROFILE%") {
+        if let Ok(home) = std::env::var("USERPROFILE") {
+            expanded = expanded.replace("%USERPROFILE%", &home);
+        }
+    }
+    expanded
+}
+
+#[tauri::command]
+async fn batch_install_skill(data_path: String, skill_name: String, targets: Vec<InstallTarget>) -> Result<String, String> {
+    let source_dir = Path::new(&data_path).join("my_skills").join(&skill_name);
+    if !source_dir.exists() {
+        return Err(format!("Source skill directory does not exist: {}", source_dir.display()));
+    }
+
+    let mut success_count = 0;
+    let mut errors = Vec::new();
+
+    for target in targets {
+        let expanded_path = expand_env_vars(&target.target_path);
+        let dest_base = Path::new(&expanded_path);
+        let dest_dir = dest_base.join(&skill_name);
+
+        // Ensure target base directory exists
+        if !dest_base.exists() {
+            if let Err(e) = fs::create_dir_all(&dest_base) {
+                errors.push(format!("{}: failed to create target dir: {}", target.platform_id, e));
+                continue;
+            }
+        }
+
+        // Copy directory
+        if dest_dir.exists() {
+            if let Err(e) = fs::remove_dir_all(&dest_dir) {
+                errors.push(format!("{}: failed to remove existing dir: {}", target.platform_id, e));
+                continue;
+            }
+        }
+
+        match copy_dir_all(&source_dir, &dest_dir) {
+            Ok(_) => success_count += 1,
+            Err(e) => errors.push(format!("{}: failed to copy: {}", target.platform_id, e)),
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(format!("Successfully installed to {} platforms.", success_count))
+    } else {
+        Err(format!("Installed to {} platforms. Errors: {}", success_count, errors.join("; ")))
+    }
+}
+
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![clone_github_repo, get_local_skills, get_skill_detail, create_local_skill, import_local_skill, delete_local_skill])
+    .invoke_handler(tauri::generate_handler![
+        clone_github_repo, get_local_skills, get_skill_detail, 
+        create_local_skill, import_local_skill, delete_local_skill,
+        batch_install_skill
+    ])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
