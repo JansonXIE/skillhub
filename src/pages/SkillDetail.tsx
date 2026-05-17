@@ -76,13 +76,14 @@ export function SkillDetail() {
   }, [platformSettings]);
 
   const filteredContent = useMemo(() => {
-    return content.split('\n').filter(line => {
-      const trimmed = line.trim().toLowerCase();
-      return !trimmed.startsWith('name:') && 
-             !trimmed.startsWith('description:') && 
-             !trimmed.startsWith('description：') &&
-             trimmed !== '---';
-    }).join('\n').trim();
+    const trimmed = content.trim();
+    if (trimmed.startsWith('---')) {
+      const parts = trimmed.split('---');
+      if (parts.length >= 3) {
+        return parts.slice(2).join('---').trim();
+      }
+    }
+    return trimmed;
   }, [content]);
 
   const handleCopyMD = () => {
@@ -104,30 +105,61 @@ export function SkillDetail() {
         const result: string = await invoke('get_skill_detail', { dataPath, skillName });
         setContent(result);
         
-        // Extract description (just basic parsing for now)
+        // Extract description
         let foundDesc = '';
-        const lines = result.split('\n');
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (trimmedLine.toLowerCase().startsWith('description:')) {
-            foundDesc = trimmedLine.substring(12).trim();
-            break;
-          } else if (trimmedLine.toLowerCase().startsWith('description：')) { // handle chinese colon
-            foundDesc = trimmedLine.substring(12).trim();
-            break;
+        const trimmed = result.trim();
+        if (trimmed.startsWith('---')) {
+          const parts = trimmed.split('---');
+          if (parts.length >= 3) {
+            const frontmatter = parts[1];
+            const lines = frontmatter.split('\n');
+            for (const line of lines) {
+              const trimmedLine = line.trim();
+              if (trimmedLine.toLowerCase().startsWith('description:')) {
+                foundDesc = trimmedLine.substring(12).trim();
+                break;
+              } else if (trimmedLine.toLowerCase().startsWith('description：')) {
+                foundDesc = trimmedLine.substring(12).trim();
+                break;
+              }
+            }
+          }
+        }
+        
+        // Fallback to searching the entire document
+        if (!foundDesc) {
+          const lines = result.split('\n');
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (trimmedLine.toLowerCase().startsWith('description:')) {
+              foundDesc = trimmedLine.substring(12).trim();
+              break;
+            } else if (trimmedLine.toLowerCase().startsWith('description：')) {
+              foundDesc = trimmedLine.substring(12).trim();
+              break;
+            }
           }
         }
         
         // Fallback to first non-title line if no description: field
         if (!foundDesc) {
+          const lines = result.split('\n');
           for (const line of lines) {
             const trimmedLine = line.trim();
-            if (trimmedLine && !trimmedLine.startsWith('#')) {
+            if (trimmedLine && !trimmedLine.startsWith('#') && trimmedLine !== '---') {
               foundDesc = trimmedLine;
               break;
             }
           }
         }
+
+        // Clean up quotes from description if present
+        if (foundDesc.startsWith('"') && foundDesc.endsWith('"')) {
+          foundDesc = foundDesc.substring(1, foundDesc.length - 1);
+        } else if (foundDesc.startsWith("'") && foundDesc.endsWith("'")) {
+          foundDesc = foundDesc.substring(1, foundDesc.length - 1);
+        }
+        
         setDescription(foundDesc);
         
       } catch (error) {

@@ -131,19 +131,6 @@ export function MySkills() {
             <CheckSquare size={16} />
             批量管理
           </button>
-          
-          <div className="btn-outline flex items-center" style={{ padding: '0.25rem', borderRadius: 'var(--radius-md)' }}>
-            <button className="btn-icon btn-ghost active" style={{ backgroundColor: 'var(--border-light)', borderRadius: 'var(--radius-sm)', color: 'var(--text-main)' }}>
-              <LayoutGrid size={16} />
-            </button>
-            <button className="btn-icon btn-ghost" style={{ borderRadius: 'var(--radius-sm)' }}>
-              <List size={16} />
-            </button>
-          </div>
-
-          <button className="btn-icon btn-outline" style={{ padding: '0.5rem 0.75rem' }}>
-            <FolderInput size={16} />
-          </button>
 
           <button className="btn-icon btn-outline" style={{ padding: '0.5rem 0.75rem' }} onClick={fetchSkills}>
             <RefreshCw size={16} />
