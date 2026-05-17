@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, UploadCloud, Server, Check } from 'lucide-react';
+import { X, UploadCloud, Check } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 

@@ -41,6 +41,19 @@ export function Pending() {
     }
   };
 
+  const highlightSkill = (skillName: string) => {
+    setTimeout(() => {
+      const card = document.getElementById(`skill-card-${skillName}`);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('highlighted-skill-card');
+        setTimeout(() => {
+          card.classList.remove('highlighted-skill-card');
+        }, 4500);
+      }
+    }, 150);
+  };
+
   useEffect(() => {
     fetchPendingSkills();
     window.addEventListener('distributed-updated', fetchPendingSkills);
@@ -48,6 +61,31 @@ export function Pending() {
       window.removeEventListener('distributed-updated', fetchPendingSkills);
     };
   }, []);
+
+  // Listen to highlight-skill event
+  useEffect(() => {
+    const handleHighlight = (e: Event) => {
+      const skillName = (e as CustomEvent).detail?.skillName;
+      if (skillName) {
+        highlightSkill(skillName);
+      }
+    };
+    window.addEventListener('highlight-skill', handleHighlight);
+    return () => {
+      window.removeEventListener('highlight-skill', handleHighlight);
+    };
+  }, [skills]);
+
+  // Check sessionStorage for pending highlight on load
+  useEffect(() => {
+    if (!loading && skills.length > 0) {
+      const targetSkill = sessionStorage.getItem('highlight-skill');
+      if (targetSkill) {
+        highlightSkill(targetSkill);
+        sessionStorage.removeItem('highlight-skill');
+      }
+    }
+  }, [loading, skills]);
 
   const handleUploadClick = (e: React.MouseEvent, skillName: string) => {
     e.stopPropagation();
@@ -75,7 +113,12 @@ export function Pending() {
       ) : (
         <div className="skills-grid">
           {skills.map((skill, index) => (
-            <div key={index} className="skill-card hover-pointer group" onClick={() => navigate(`/skill/${skill.name}`)}>
+            <div 
+              key={index} 
+              id={`skill-card-${skill.name}`}
+              className="skill-card hover-pointer group" 
+              onClick={() => navigate(`/skill/${skill.name}`)}
+            >
               <div className="skill-card-header">
                 <div className="skill-card-icon">
                   {skill.name.charAt(0).toUpperCase()}

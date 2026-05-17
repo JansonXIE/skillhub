@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Globe, Server } from 'lucide-react';
 import { EmptyState } from '../components/EmptyState';
 import { invoke } from '@tauri-apps/api/core';
@@ -20,7 +19,6 @@ interface DistributedMeta {
 export function Distributed() {
   const [skills, setSkills] = useState<(SkillInfo & { meta: DistributedMeta })[]>([]);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
   const fetchDistributedSkills = async () => {
     try {
@@ -50,6 +48,19 @@ export function Distributed() {
     }
   };
 
+  const highlightSkill = (skillName: string) => {
+    setTimeout(() => {
+      const card = document.getElementById(`skill-card-${skillName}`);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('highlighted-skill-card');
+        setTimeout(() => {
+          card.classList.remove('highlighted-skill-card');
+        }, 4500);
+      }
+    }, 150);
+  };
+
   useEffect(() => {
     fetchDistributedSkills();
     window.addEventListener('distributed-updated', fetchDistributedSkills);
@@ -57,6 +68,31 @@ export function Distributed() {
       window.removeEventListener('distributed-updated', fetchDistributedSkills);
     };
   }, []);
+
+  // Listen to highlight-skill event
+  useEffect(() => {
+    const handleHighlight = (e: Event) => {
+      const skillName = (e as CustomEvent).detail?.skillName;
+      if (skillName) {
+        highlightSkill(skillName);
+      }
+    };
+    window.addEventListener('highlight-skill', handleHighlight);
+    return () => {
+      window.removeEventListener('highlight-skill', handleHighlight);
+    };
+  }, [skills]);
+
+  // Check sessionStorage for pending highlight on load
+  useEffect(() => {
+    if (!loading && skills.length > 0) {
+      const targetSkill = sessionStorage.getItem('highlight-skill');
+      if (targetSkill) {
+        highlightSkill(targetSkill);
+        sessionStorage.removeItem('highlight-skill');
+      }
+    }
+  }, [loading, skills]);
 
   return (
     <div className="page-container">
@@ -78,7 +114,12 @@ export function Distributed() {
       ) : (
         <div className="skills-grid">
           {skills.map((skill, index) => (
-            <div key={index} className="skill-card group" style={{ cursor: 'default' }}>
+            <div 
+              key={index} 
+              id={`skill-card-${skill.name}`}
+              className="skill-card group" 
+              style={{ cursor: 'default' }}
+            >
               <div className="skill-card-header">
                 <div className="skill-card-icon">
                   {skill.name.charAt(0).toUpperCase()}

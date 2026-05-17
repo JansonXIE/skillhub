@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, Settings as SettingsIcon, Monitor, Database, 
-  Cpu, Sparkles, Keyboard, Globe, Bell, Key, Info, 
+  ArrowLeft, Database, Cpu, Sparkles, Info, 
   Folder, ExternalLink, UploadCloud
 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';

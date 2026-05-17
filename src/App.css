@@ -31,6 +31,7 @@
   justify-content: space-between;
   padding: 0 1.5rem;
   flex-shrink: 0;
+  position: relative;
 }
 
 .main-content {
@@ -155,6 +156,147 @@
 
 .search-input::placeholder {
   color: var(--text-tertiary);
+}
+
+/* ==========================================================================
+   Centered Search Bar, Autocomplete Dropdown, and Skill Highlight Glow
+   ========================================================================== */
+
+.search-bar-container {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(280px, 38%, 580px);
+  z-index: 50;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-app);
+  border-radius: var(--radius-full);
+  padding: 0.375rem 1rem;
+  width: 100%;
+  border: 1px solid transparent;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.search-bar:focus-within {
+  border-color: var(--color-primary);
+  background-color: var(--bg-surface);
+}
+
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 0.5rem;
+  animation: fadeIn var(--transition-fast) ease-out;
+}
+
+.search-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  outline: none;
+}
+
+.search-dropdown-item:hover,
+.search-dropdown-item:focus {
+  background-color: var(--border-light);
+  outline: none;
+}
+
+.search-item-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-primary);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  flex-shrink: 0;
+}
+
+.search-item-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.search-item-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-item-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 0.125rem;
+}
+
+.search-no-results {
+  padding: 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Premium Highlight Glow Animation for Found Skill */
+@keyframes skillHighlightPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(59, 130, 246, 0);
+    transform: scale(1.02);
+    border-color: var(--color-primary);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    transform: scale(1);
+  }
+}
+
+.highlighted-skill-card {
+  animation: skillHighlightPulse 1.5s ease-out 3;
+  border-color: var(--color-primary) !important;
+  background-color: rgba(59, 130, 246, 0.05) !important;
+  z-index: 10;
+  position: relative;
+}
+
+/* Ensure buttons and cards on focus have no black outlines */
+button:focus,
+input:focus,
+.search-dropdown-item:focus,
+.skill-card:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Page Header Specifics */
