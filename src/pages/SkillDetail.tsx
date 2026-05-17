@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { 
-  ArrowLeft, Camera, Star, History, Edit, Trash2, 
-  ShieldCheck, Globe, CheckSquare, Download, LayoutGrid, FolderInput
+  ArrowLeft, ShieldCheck, Globe, CheckSquare, Download, LayoutGrid
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { AITranslationModal } from '../components/modals/AITranslationModal';

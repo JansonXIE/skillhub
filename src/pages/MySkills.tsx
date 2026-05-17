@@ -5,6 +5,7 @@ import { EmptyState } from '../components/EmptyState';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 
+
 interface SkillInfo {
   name: string;
   description: string | null;
@@ -32,8 +33,28 @@ export function MySkills() {
     }
   };
 
+  const handleDelete = async (e: React.MouseEvent, skillName: string) => {
+    e.stopPropagation();
+    try {
+      let dataPath = localStorage.getItem('skillhub-data-path');
+      if (!dataPath) {
+        const baseDir = await appDataDir();
+        dataPath = await join(baseDir, 'SkillsHub');
+      }
+
+      await invoke('delete_local_skill', { dataPath, skillName });
+      window.dispatchEvent(new CustomEvent('skills-updated'));
+    } catch (error: any) {
+      console.error('Failed to delete skill:', error);
+    }
+  };
+
   useEffect(() => {
     fetchSkills();
+    window.addEventListener('skills-updated', fetchSkills);
+    return () => {
+      window.removeEventListener('skills-updated', fetchSkills);
+    };
   }, []);
 
   return (
@@ -92,7 +113,7 @@ export function MySkills() {
                   <button className="skill-action-btn" title="添加收藏">
                     <Star size={14} />
                   </button>
-                  <button className="skill-action-btn skill-action-btn--danger" title="删除">
+                  <button className="skill-action-btn skill-action-btn--danger" title="删除" onClick={(e) => handleDelete(e, skill.name)}>
                     <Trash2 size={14} />
                   </button>
                 </div>

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Search, Plus, Moon, Box } from 'lucide-react';
 import { NewSkillModal } from './NewSkillModal';
+import { AIReviewModal } from './modals/AIReviewModal';
 
 export function Header() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [reviewSkill, setReviewSkill] = useState<{ name: string; content: string } | null>(null);
 
   return (
     <header className="header">
@@ -37,7 +39,20 @@ export function Header() {
         </button>
       </div>
       
-      <NewSkillModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <NewSkillModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onCreated={(name, content) => setReviewSkill({ name, content })}
+      />
+
+      {reviewSkill && (
+        <AIReviewModal 
+          isOpen={true} 
+          onClose={() => setReviewSkill(null)}
+          skillName={reviewSkill.name}
+          skillContent={reviewSkill.content}
+        />
+      )}
     </header>
   );
 }

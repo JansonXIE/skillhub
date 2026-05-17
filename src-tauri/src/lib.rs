@@ -118,11 +118,103 @@ async fn get_skill_detail(data_path: String, skill_name: String) -> Result<Strin
     }
 }
 
+fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
+    fs::create_dir_all(&dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() {
+            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        } else {
+            fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn create_local_skill(data_path: String, skill_name: String, content: String) -> Result<String, String> {
+    let skills_dir = Path::new(&data_path).join("my_skills");
+    if !skills_dir.exists() {
+        if let Err(e) = fs::create_dir_all(&skills_dir) {
+            return Err(format!("Failed to create skills directory: {}", e));
+        }
+    }
+
+    let dest_path = skills_dir.join(&skill_name);
+    if dest_path.exists() {
+        return Err(format!("Skill '{}' already exists.", skill_name));
+    }
+
+    if let Err(e) = fs::create_dir_all(&dest_path) {
+        return Err(format!("Failed to create skill directory: {}", e));
+    }
+
+    let md_path = dest_path.join("SKILL.md");
+    if let Err(e) = fs::write(&md_path, content) {
+        return Err(format!("Failed to write SKILL.md: {}", e));
+    }
+
+    Ok(format!("Successfully created skill {}", skill_name))
+}
+
+#[tauri::command]
+async fn import_local_skill(data_path: String, source_path: String) -> Result<String, String> {
+    let src_path = Path::new(&source_path);
+    if !src_path.exists() || !src_path.is_dir() {
+        return Err("Source path is invalid or not a directory".to_string());
+    }
+
+    // Check if SKILL.md or README.md exists
+    let has_skill_md = src_path.join("SKILL.md").exists();
+    let has_readme_md = src_path.join("README.md").exists();
+    if !has_skill_md && !has_readme_md {
+        return Err("Directory must contain SKILL.md or README.md".to_string());
+    }
+
+    let dir_name = src_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+    if dir_name.is_empty() {
+        return Err("Invalid source directory name".to_string());
+    }
+
+    let skills_dir = Path::new(&data_path).join("my_skills");
+    if !skills_dir.exists() {
+        if let Err(e) = fs::create_dir_all(&skills_dir) {
+            return Err(format!("Failed to create skills directory: {}", e));
+        }
+    }
+
+    let dest_path = skills_dir.join(&dir_name);
+    if dest_path.exists() {
+        return Err(format!("Skill '{}' already exists in my_skills directory.", dir_name));
+    }
+
+    match copy_dir_all(src_path, &dest_path) {
+        Ok(_) => Ok(format!("Successfully imported skill {}", dir_name)),
+        Err(e) => Err(format!("Failed to copy directory: {}", e))
+    }
+}
+
+#[tauri::command]
+async fn delete_local_skill(data_path: String, skill_name: String) -> Result<String, String> {
+    let skill_dir = Path::new(&data_path).join("my_skills").join(&skill_name);
+    if !skill_dir.exists() {
+        return Err(format!("Skill '{}' does not exist.", skill_name));
+    }
+
+    if let Err(e) = fs::remove_dir_all(&skill_dir) {
+        return Err(format!("Failed to delete skill directory: {}", e));
+    }
+
+    Ok(format!("Successfully deleted skill {}", skill_name))
+}
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
-    .invoke_handler(tauri::generate_handler![clone_github_repo, get_local_skills, get_skill_detail])
+    .invoke_handler(tauri::generate_handler![clone_github_repo, get_local_skills, get_skill_detail, create_local_skill, import_local_skill, delete_local_skill])
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
