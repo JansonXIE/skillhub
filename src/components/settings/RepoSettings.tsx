@@ -6,12 +6,14 @@ export interface RepoConfig {
   name: string;
   url: string;
   branch: string;
+  type: 'github' | 'gerrit';
+  sshUser?: string;
 }
 
 export function RepoSettings() {
   const [repos, setRepos] = useState<RepoConfig[]>([]);
   const [isAdding, setIsAdding] = useState(false);
-  const [newRepo, setNewRepo] = useState<Partial<RepoConfig>>({ branch: 'main' });
+  const [newRepo, setNewRepo] = useState<Partial<RepoConfig>>({ branch: 'main', type: 'github' });
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
   useEffect(() => {
@@ -45,12 +47,14 @@ export function RepoSettings() {
       id: Date.now().toString(),
       name: finalName,
       url: newRepo.url,
-      branch: newRepo.branch
+      branch: newRepo.branch,
+      type: newRepo.type || 'github',
+      sshUser: newRepo.sshUser?.trim() || undefined,
     };
     
     saveRepos([...repos, repo]);
     setIsAdding(false);
-    setNewRepo({ branch: 'main' });
+    setNewRepo({ branch: 'main', type: 'github' });
   };
 
   const handleDelete = (id: string) => {
@@ -58,6 +62,7 @@ export function RepoSettings() {
   };
 
   const isGithub = (url: string) => url.toLowerCase().includes('github.com');
+  const isGerrit = (repo: RepoConfig) => repo.type === 'gerrit';
 
   const styles = {
     card: {
@@ -146,10 +151,24 @@ export function RepoSettings() {
           <div key={repo.id} className="settings-card flex items-center justify-between group" style={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border-color)', marginBottom: '16px' }}>
             <div className="flex items-center">
               <div className="settings-card-icon">
-                {isGithub(repo.url) ? <GitBranch size={20} className="text-secondary" /> : <Server size={20} className="text-secondary" />}
+                {isGerrit(repo) ? <Server size={20} style={{ color: '#f97316' }} /> : <GitBranch size={20} className="text-secondary" />}
               </div>
               <div className="settings-card-info">
-                <div className="settings-card-title">{repo.name}</div>
+                <div className="settings-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {repo.name}
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: '600',
+                    padding: '2px 7px',
+                    borderRadius: '6px',
+                    backgroundColor: isGerrit(repo) ? '#fff7ed' : '#eff6ff',
+                    color: isGerrit(repo) ? '#f97316' : '#3b82f6',
+                    border: `1px solid ${isGerrit(repo) ? '#fed7aa' : '#bfdbfe'}`,
+                    letterSpacing: '0.02em',
+                  }}>
+                    {isGerrit(repo) ? 'Gerrit' : 'GitHub'}
+                  </span>
+                </div>
                 <div className="settings-card-desc flex items-center gap-3 mt-1" style={{ display: 'flex', alignItems: 'center' }}>
                   <span className="truncate max-w-[400px]" title={repo.url}>{repo.url}</span>
                   <span className="px-2 py-0.5 rounded-full bg-secondary/10 text-xs" style={{ color: 'var(--text-secondary)', display: 'inline-block', fontSize: '11px' }}>
@@ -215,26 +234,78 @@ export function RepoSettings() {
                   autoFocus
                 />
               </div>
+
+              <div style={styles.row}>
+                <label style={styles.label}>仓库类型</label>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {(['github', 'gerrit'] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setNewRepo({ ...newRepo, type: t, branch: t === 'gerrit' ? 'master' : 'main' })}
+                      style={{
+                        padding: '8px 20px',
+                        borderRadius: '10px',
+                        border: newRepo.type === t
+                          ? `1.5px solid ${t === 'gerrit' ? '#f97316' : '#3b82f6'}`
+                          : '1.5px solid #cbd5e1',
+                        backgroundColor: newRepo.type === t
+                          ? (t === 'gerrit' ? '#fff7ed' : '#eff6ff')
+                          : '#ffffff',
+                        color: newRepo.type === t
+                          ? (t === 'gerrit' ? '#f97316' : '#3b82f6')
+                          : '#64748b',
+                        fontWeight: newRepo.type === t ? '600' : '400',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        outline: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      {t === 'gerrit' ? <Server size={14} /> : <GitBranch size={14} />}
+                      {t === 'gerrit' ? 'Gerrit' : 'GitHub'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               
               <div style={styles.row}>
                 <label style={styles.label}>仓库地址 (Git URL)</label>
                 <input
                   type="text"
                   style={styles.input(focusedField === 'url')}
-                  placeholder="例如：https://github.com/YourUsername/RepositoryName"
+                  placeholder={newRepo.type === 'gerrit' ? 'ssh://user@gerrit-ai.sophgo.vip:29418/repo-name' : 'https://github.com/YourUsername/RepositoryName'}
                   value={newRepo.url || ''}
                   onChange={(e) => setNewRepo({...newRepo, url: e.target.value})}
                   onFocus={() => setFocusedField('url')}
                   onBlur={() => setFocusedField(null)}
                 />
               </div>
+
+              {newRepo.type === 'gerrit' && (
+                <div style={styles.row}>
+                  <label style={styles.label}>SSH 用户名</label>
+                  <input
+                    type="text"
+                    style={styles.input(focusedField === 'sshUser')}
+                    placeholder="例如：jianxing.xie"
+                    value={newRepo.sshUser || ''}
+                    onChange={(e) => setNewRepo({...newRepo, sshUser: e.target.value})}
+                    onFocus={() => setFocusedField('sshUser')}
+                    onBlur={() => setFocusedField(null)}
+                  />
+                </div>
+              )}
               
               <div style={styles.row}>
                 <label style={styles.label}>默认分支</label>
                 <input
                   type="text"
                   style={styles.input(focusedField === 'branch')}
-                  placeholder="main"
+                  placeholder={newRepo.type === 'gerrit' ? 'master' : 'main'}
                   value={newRepo.branch || ''}
                   onChange={(e) => setNewRepo({...newRepo, branch: e.target.value})}
                   onFocus={() => setFocusedField('branch')}

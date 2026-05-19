@@ -1,7 +1,9 @@
 use std::process::Command;
 use std::fs;
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Serialize, Deserialize};
+
 
 #[derive(Serialize, Deserialize)]
 pub struct SkillInfo {
@@ -280,6 +282,16 @@ fn get_cache_dir() -> Result<std::path::PathBuf, String> {
     }
 }
 
+fn get_gerrit_cache_dir() -> Result<std::path::PathBuf, String> {
+    if let Ok(home) = std::env::var("USERPROFILE") {
+        Ok(Path::new(&home).join(".gerrit-skills-repo"))
+    } else if let Ok(home) = std::env::var("HOME") {
+        Ok(Path::new(&home).join(".gerrit-skills-repo"))
+    } else {
+        Err("Could not find home directory".to_string())
+    }
+}
+
 fn run_git_cmd(args: &[&str], cwd: Option<&Path>) -> Result<String, String> {
     let mut cmd = Command::new("git");
     cmd.args(args);
@@ -329,11 +341,14 @@ async fn prepare_skill_commit(data_path: String, skill_name: String, repo_url: S
         return Err(format!("Failed to copy skill files: {}", e));
     }
     
-    // 5. Git add
-    run_git_cmd(&["add", "."], Some(&cache_dir))?;
+    // Clean to ensure a fresh environment just in case
+    run_git_cmd(&["reset", "--hard", &format!("origin/{}", branch)], Some(&cache_dir)).unwrap_or_default();
+    
+    // 5. Git add specific skill only
+    run_git_cmd(&["add", "--all", &skill_name], Some(&cache_dir))?;
     
     // 6. Check status and get diff
-    let status = run_git_cmd(&["status", "--porcelain"], Some(&cache_dir))?;
+    let status = run_git_cmd(&["status", "--porcelain", &skill_name], Some(&cache_dir))?;
     if status.trim().is_empty() {
         return Ok("".to_string()); // empty diff means no changes
     }
@@ -360,14 +375,192 @@ async fn commit_and_push_skill(repo_url: String, branch: String, commit_message:
     Ok("Successfully pushed".to_string())
 }
 
+#[tauri::command]
+async fn install_gerrit_hook(repo_dir: String) -> Result<String, String> {
+    let hook_path = Path::new(&repo_dir).join(".git").join("hooks").join("commit-msg");
+    let host = "gerrit-ai.sophgo.vip";
+    let port = "29418";
+    let user = "jianxing.xie";
+
+    let output = Command::new("scp")
+        .args([
+            "-p", "-P", port,
+            &format!("{}@{}:hooks/commit-msg", user, host),
+            hook_path.to_str().unwrap_or(""),
+        ])
+        .output();
+
+    match output {
+        Ok(o) if o.status.success() => {
+            // On Unix set executable; on Windows this is a no-op
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = fs::set_permissions(&hook_path, fs::Permissions::from_mode(0o755));
+            }
+            Ok("Gerrit commit-msg hook installed.".to_string())
+        }
+        Ok(o) => {
+            let stderr = String::from_utf8_lossy(&o.stderr);
+            // Non-fatal: return warning instead of error
+            Ok(format!("Hook install skipped (can be ignored): {}", stderr.trim()))
+        }
+        Err(e) => Ok(format!("Hook install skipped (scp not available): {}", e)),
+    }
+}
+
+#[tauri::command]
+async fn prepare_gerrit_commit(
+    data_path: String,
+    skill_name: String,
+    repo_url: String,
+    branch: String,
+    ssh_user: String,
+    amend: bool,
+) -> Result<String, String> {
+    let _ = ssh_user; // reserved for future use
+    let source_dir = Path::new(&data_path).join("my_skills").join(&skill_name);
+    if !source_dir.exists() {
+        return Err(format!("Local skill {} does not exist", skill_name));
+    }
+
+    let cache_dir = get_gerrit_cache_dir()?;
+
+    // Clone if not yet cloned
+    if !cache_dir.exists() {
+        run_git_cmd(&["clone", &repo_url, cache_dir.to_str().unwrap()], None)?;
+        // Install commit-msg hook
+        let _ = install_gerrit_hook(cache_dir.to_str().unwrap().to_string()).await;
+    }
+
+    // In amend mode skip pull to preserve previous Change-Id
+    if !amend {
+        run_git_cmd(&["pull", "origin", &branch], Some(&cache_dir))?;
+
+        // Detect and clean up any unpushed local commits that lack Change-Id.
+        // These are leftovers from previous failed push attempts.
+        // We soft-reset them so the files stay staged but the bad commits are gone.
+        let origin_ref = format!("origin/{}", branch);
+        let ahead = run_git_cmd(
+            &["log", &format!("{}..HEAD", origin_ref), "--pretty=%H %s"],
+            Some(&cache_dir),
+        ).unwrap_or_default();
+
+        if !ahead.trim().is_empty() {
+            // Any unpushed commits in our local cache are leftovers from previous failed attempts.
+            // Hard reset to origin to clear the index and working tree, drop unrelated changes.
+            run_git_cmd(&["reset", "--hard", &origin_ref], Some(&cache_dir))?;
+            // Clean any untracked files left over
+            run_git_cmd(&["clean", "-fd"], Some(&cache_dir)).unwrap_or_default();
+        }
+    }
+
+    // Copy skill files
+    let target_dir = cache_dir.join(&skill_name);
+    if target_dir.exists() {
+        fs::remove_dir_all(&target_dir)
+            .map_err(|e| format!("Failed to remove old target dir: {}", e))?;
+    }
+    copy_dir_all(&source_dir, &target_dir)
+        .map_err(|e| format!("Failed to copy skill files: {}", e))?;
+
+    // Only add this specific skill's directory, avoiding untracked files elsewhere
+    run_git_cmd(&["add", "--all", &skill_name], Some(&cache_dir))?;
+
+    let status = run_git_cmd(&["status", "--porcelain", &skill_name], Some(&cache_dir))?;
+    if status.trim().is_empty() && !amend {
+        return Ok("".to_string());
+    }
+
+    let diff = run_git_cmd(&["diff", "--cached"], Some(&cache_dir))?;
+    // In amend mode with no new diff, return last commit message as context
+    if diff.trim().is_empty() && amend {
+        let last_msg = run_git_cmd(&["log", "-1", "--pretty=%B"], Some(&cache_dir))
+            .unwrap_or_default();
+        return Ok(last_msg);
+    }
+    Ok(diff)
+}
+
+/// Generate a Gerrit-compatible Change-Id ("I" + 40 hex chars).
+/// Uses current time + a simple hash to produce a unique, reproducible-looking ID.
+fn generate_change_id() -> String {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .subsec_nanos();
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    // Simple mixing to produce 40 hex digits
+    let mut v: u64 = secs ^ ((nanos as u64) << 32) ^ 0xdeadbeef_cafebabe;
+    let mut hex = String::with_capacity(40);
+    for _ in 0..5 {
+        v = v.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        hex.push_str(&format!("{:016x}", v));
+    }
+    hex.truncate(40);
+    format!("I{}", hex)
+}
+
+#[tauri::command]
+async fn commit_and_push_to_gerrit(
+    repo_url: String,
+    branch: String,
+    commit_message: String,
+    amend: bool,
+) -> Result<String, String> {
+    let _ = repo_url;
+    let cache_dir = get_gerrit_cache_dir()?;
+    if !cache_dir.exists() {
+        return Err("Gerrit cache dir not found, did you call prepare first?".to_string());
+    }
+
+    if amend {
+        // Preserve Change-Id from the previous commit
+        let prev_msg = run_git_cmd(&["log", "-1", "--pretty=%B"], Some(&cache_dir))
+            .unwrap_or_default();
+        let change_id_line = prev_msg
+            .lines()
+            .find(|l| l.trim_start().starts_with("Change-Id:"))
+            .map(|l| l.to_string());
+
+        // Reuse existing Change-Id if available; otherwise generate new one
+        let cid = change_id_line.unwrap_or_else(|| format!("Change-Id: {}", generate_change_id()));
+
+        let final_msg = if commit_message.contains("Change-Id:") {
+            commit_message.clone()
+        } else {
+            format!("{}\n{}", commit_message.trim_end(), cid)
+        };
+        run_git_cmd(&["commit", "--amend", "-m", &final_msg], Some(&cache_dir))?;
+    } else {
+        // New commit: always append a fresh Change-Id
+        let final_msg = if commit_message.contains("Change-Id:") {
+            commit_message.clone()
+        } else {
+            format!("{}\nChange-Id: {}", commit_message.trim_end(), generate_change_id())
+        };
+        run_git_cmd(&["commit", "-m", &final_msg], Some(&cache_dir))?;
+    }
+
+    // Push to Gerrit Code Review
+    let refspec = format!("HEAD:refs/for/{}", branch);
+    run_git_cmd(&["push", "origin", &refspec], Some(&cache_dir))?;
+
+    Ok("Successfully pushed to Gerrit.".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
     .invoke_handler(tauri::generate_handler![
-        clone_github_repo, get_local_skills, get_skill_detail, 
+        clone_github_repo, get_local_skills, get_skill_detail,
         create_local_skill, import_local_skill, delete_local_skill,
-        batch_install_skill, prepare_skill_commit, commit_and_push_skill
+        batch_install_skill, prepare_skill_commit, commit_and_push_skill,
+        install_gerrit_hook, prepare_gerrit_commit, commit_and_push_to_gerrit
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {
