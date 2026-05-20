@@ -15,6 +15,12 @@
   - **路由扩展**：新增 `store/:owner/:repo` 和 `store/:owner/:repo/:skillName` 两条嵌套路由。
   - **样式扩展**：新增侧边栏商店子导航、添加按钮、删除按钮以及加载动画的完整 CSS 样式，支持暗色模式。
 
+### 修复
+- **彻底修复 GitHub Actions 构建发布失败问题（OTA 更新管线）**:
+  - **根因分析**：Tauri v2 的 Windows updater 原生使用 **NSIS** 格式（`.nsis.zip` + `.nsis.zip.sig`），而非 MSI。之前的构建管线 `--bundles msi` 只生成 `.msi` 文件，不会自动产生 updater 所需的压缩包和签名文件，导致 `generate-manifest.cjs` 始终因找不到文件而报错退出。
+  - **重写 `release.yml`**：改用 `--bundles nsis,msi` 同时构建两种格式——NSIS 用于 OTA 在线更新，MSI 供用户直接下载安装。
+  - **重写 `generate-manifest.cjs`**：改为从 `target/release/bundle/nsis/` 目录读取 `.nsis.zip` 和 `.nsis.zip.sig`，并增加目录存在性检查与详尽的诊断日志输出。
+
 ## [0.2.6] - 2026-05-21
 
 ### 新增

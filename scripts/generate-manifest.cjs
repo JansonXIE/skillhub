@@ -12,23 +12,41 @@ if (!TAG || !REPO) {
 const version = TAG.replace(/^v/, '');             // "1.2.0"
 const baseUrl = `https://github.com/${REPO}/releases/download/${TAG}`;
 
-const msiDir = path.join(__dirname, '..', 'src-tauri', 'target', 'release', 'bundle', 'msi');
-const files = fs.readdirSync(msiDir);
+// Tauri v2 updater on Windows uses NSIS format
+// The updater artifacts are in target/release/bundle/nsis/
+const nsisDir = path.join(__dirname, '..', 'src-tauri', 'target', 'release', 'bundle', 'nsis');
 
-const zipFile = files.find(f => f.endsWith('.msi.zip'));
-const sigFile = files.find(f => f.endsWith('.msi.zip.sig'));
+console.log('Looking for NSIS updater artifacts in:', nsisDir);
+
+if (!fs.existsSync(nsisDir)) {
+  console.error('NSIS bundle directory not found:', nsisDir);
+  process.exit(1);
+}
+
+const files = fs.readdirSync(nsisDir);
+console.log('Files in NSIS directory:', files);
+
+const zipFile = files.find(f => f.endsWith('.nsis.zip'));
+const sigFile = files.find(f => f.endsWith('.nsis.zip.sig'));
 
 if (!zipFile) {
-  console.error('MSI zip file not found in', msiDir);
+  console.error('NSIS updater zip file (.nsis.zip) not found in', nsisDir);
+  console.error('Available files:', files.join(', '));
   process.exit(1);
 }
 
 if (!sigFile) {
-  console.error('Signature file (.msi.zip.sig) not found in', msiDir);
+  console.error('Signature file (.nsis.zip.sig) not found in', nsisDir);
+  console.error('Available files:', files.join(', '));
   process.exit(1);
 }
 
-const signature = fs.readFileSync(path.join(msiDir, sigFile), 'utf-8').trim();
+const signature = fs.readFileSync(path.join(nsisDir, sigFile), 'utf-8').trim();
+
+if (!signature) {
+  console.error('Signature file is empty!');
+  process.exit(1);
+}
 
 const manifest = {
   version,
