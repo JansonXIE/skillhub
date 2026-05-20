@@ -51,6 +51,7 @@ Desktop.ini
 # AI & Tooling
 .agents/
 .gemini/
+.claude/
 
 # Optional: lock files (uncomment if you don't want to commit them, 
 # but usually it's recommended to keep them)

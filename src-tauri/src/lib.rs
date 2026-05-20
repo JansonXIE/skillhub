@@ -556,6 +556,8 @@ async fn commit_and_push_to_gerrit(
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_dialog::init())
+    .plugin(tauri_plugin_updater::Builder::new().build())
+    .plugin(tauri_plugin_process::init())
     .invoke_handler(tauri::generate_handler![
         clone_github_repo, get_local_skills, get_skill_detail,
         create_local_skill, import_local_skill, delete_local_skill,

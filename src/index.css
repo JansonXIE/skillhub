@@ -121,3 +121,47 @@ body {
 .btn-icon {
   padding: 0.5rem;
 }
+
+/* Update Notification */
+.update-notification {
+  margin: 0.75rem 1.5rem 0;
+}
+
+.update-notification-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--color-primary);
+  color: var(--text-inverse);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.update-notification-content.error {
+  background-color: #ef4444;
+}
+
+.update-progress {
+  width: 120px;
+  height: 6px;
+  accent-color: var(--text-inverse);
+}
+
+.update-notification-content .btn-ghost {
+  color: var(--text-inverse);
+}
+
+.update-notification-content .btn-ghost:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.update-notification-content .btn-primary {
+  background-color: var(--text-inverse);
+  color: var(--color-primary);
+}
+
+.update-notification-content .btn-primary:hover {
+  background-color: rgba(255, 255, 255, 0.9);
+}

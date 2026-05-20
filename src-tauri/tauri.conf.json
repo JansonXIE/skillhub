@@ -23,9 +23,21 @@
       "csp": null
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNCNkQ3NDM5OEY2QzAxODEKUldTQkFXeVBPWFJ0TzdidHhJWGx1Ylp4VkxBK0VxUUNnVjZ0SUFlRUgwd0prRmxaMVlrS2pNQXoK",
+      "endpoints": [
+        "https://github.com/JansonXIE/skillhub/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": "nsis",
+    "createUpdaterArtifacts": false,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

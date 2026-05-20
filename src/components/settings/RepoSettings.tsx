@@ -61,7 +61,6 @@ export function RepoSettings() {
     saveRepos(repos.filter(r => r.id !== id));
   };
 
-  const isGithub = (url: string) => url.toLowerCase().includes('github.com');
   const isGerrit = (repo: RepoConfig) => repo.type === 'gerrit';
 
   const styles = {
