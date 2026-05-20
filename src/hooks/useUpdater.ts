@@ -18,6 +18,18 @@ export function useUpdater() {
     progress: 0,
   });
 
+  const formatError = (error: unknown, fallback: string) => {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    if (typeof error === 'string' && error.trim()) {
+      return error;
+    }
+
+    return fallback;
+  };
+
   const checkUpdate = useCallback(async () => {
     try {
       const update = await check();
@@ -29,9 +41,21 @@ export function useUpdater() {
           downloading: false,
           progress: 0,
         });
+      } else {
+        setStatus({
+          available: false,
+          downloading: false,
+          progress: 0,
+        });
       }
-    } catch (e) {
-      console.error('Update check failed:', e);
+    } catch (error) {
+      console.error('Update check failed:', error);
+      setStatus({
+        available: false,
+        downloading: false,
+        progress: 0,
+        error: `更新检查失败: ${formatError(error, '未知错误')}`,
+      });
     }
   }, []);
 
@@ -64,11 +88,11 @@ export function useUpdater() {
       });
 
       await relaunch();
-    } catch (e) {
+    } catch (error) {
       setStatus((s) => ({
         ...s,
         downloading: false,
-        error: `更新失败: ${e}`,
+        error: `更新失败: ${formatError(error, '未知错误')}`,
       }));
     }
   }, []);
