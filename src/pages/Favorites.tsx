@@ -154,7 +154,7 @@ export function Favorites() {
             批量管理
           </button>
 
-          <button className="btn-icon btn-outline" style={{ padding: '0.5rem 0.75rem', outline: 'none' }} onClick={fetchFavorites}>
+          <button className="btn-icon btn-outline" style={{ padding: '0.5rem 0.75rem', outline: 'none' }} onClick={() => window.dispatchEvent(new CustomEvent('skills-updated'))}>
             <RefreshCw size={16} />
           </button>
         </div>

@@ -170,7 +170,7 @@ export function MySkills() {
             批量管理
           </button>
 
-          <button className="btn-icon btn-outline" style={{ padding: '0.5rem 0.75rem' }} onClick={fetchSkills}>
+          <button className="btn-icon btn-outline" style={{ padding: '0.5rem 0.75rem' }} onClick={() => window.dispatchEvent(new CustomEvent('skills-updated'))}>
             <RefreshCw size={16} />
           </button>
         </div>

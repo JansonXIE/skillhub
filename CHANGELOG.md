@@ -8,6 +8,9 @@
   - 编写了 `scripts/update-version.cjs` 脚本，在构建打包前根据发布 Tag 自动、动态地同步更新 `tauri.conf.json`、`package.json` 和 `Cargo.toml` 中的版本号，解决安装新包后应用内部版本仍然显示旧版本的 Bug。
   - 优化 `scripts/generate-manifest.cjs` 清单生成脚本，使其查找 `.msi.zip` 和 `.msi.zip.sig`，同时对签名进行强校验（若签名文件缺失或为空则中断报错退出），确保发布生成的 `latest.json` 包含正确的下载链接与合法的 base64 Minisign 签名数据，从而彻底根治客户端更新时提示 `Invalid encoding in minisign data` 的异常。
   - 调整 `.github/workflows/release.yml` 构建发布工作流，在构建前执行版本更新脚本，并确保在发布时完整上传 `.msi`、`.msi.zip`、`.msi.zip.sig` 以及最新的 `latest.json` 清单文件。
+- **修复侧边栏技能数量统计在切换数据目录和刷新时不同步的问题**:
+  - 在 `Settings.tsx` 中更改/保存数据目录后，派发 `skills-updated` 全局事件，通知侧边栏更新技能统计徽章。
+  - 修改 `MySkills.tsx` 和 `Favorites.tsx` 页面中的“刷新”按钮点击逻辑，改为派发 `skills-updated` 事件，利用事件发布-订阅机制驱动侧边栏与页面技能列表同步刷新，杜绝数量不一致和局部刷新失效的问题。
 
 ## [0.2.4] - 2026-05-20
 

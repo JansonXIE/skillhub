@@ -52,6 +52,7 @@ export function Settings() {
       if (selected && typeof selected === 'string') {
         setDataPath(selected);
         localStorage.setItem('skillhub-data-path', selected);
+        window.dispatchEvent(new CustomEvent('skills-updated'));
       }
     } catch (err) {
       console.error('Failed to open directory dialog', err);
