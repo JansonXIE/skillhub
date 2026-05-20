@@ -25,6 +25,9 @@
   - 在 `tauri.conf.json` 里的 `bundle.targets` 配置中加入 `msi`（即改为 `["nsis", "msi"]`），确保构建 MSI 格式包时能够正常为 updater 生成对应的 `.msi.zip` 和 `.msi.zip.sig` 文件，从而使 `generate-manifest.cjs` 清单生成步骤能够成功运行。
 - **修复批量同步弹窗导致的应用白屏崩溃问题**:
   - 移除了 `BatchSyncModal.tsx` 中对 `lucide-react` 缺失的 `Github` 图标的导入，替换为内置 `GithubIconSvg` 组件，彻底解决由于预编译解析错误导致的应用白屏崩溃 Bug。
+- **修复批量管理弹窗中的未被使用变量导致的编译错误**:
+  - 移除了 `BatchSyncModal.tsx` 中 `handleGoToSettings` 声明及调用处未被使用的参数 `platformId`，以解决打包构建阶段由于 `tsconfig` 严格校验规则报错 `TS6133: 'platformId' is declared but its value is never read` 导致的 CI 流程中断。
+
 
 ## [0.2.5] - 2026-05-20
 

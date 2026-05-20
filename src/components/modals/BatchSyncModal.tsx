@@ -89,7 +89,7 @@ export function BatchSyncModal({ isOpen, onClose, selectedSkillNames, onSyncComp
     return id;
   };
 
-  const handleGoToSettings = (e: React.MouseEvent, platformId: string) => {
+  const handleGoToSettings = (e: React.MouseEvent) => {
     e.stopPropagation();
     // 写入一个标识，以便 Settings.tsx 在加载时自动激活 Tab
     localStorage.setItem('skillhub-settings-active-tab', 'skill');
@@ -249,7 +249,7 @@ export function BatchSyncModal({ isOpen, onClose, selectedSkillNames, onSyncComp
                 type="button" 
                 className="btn btn-primary" 
                 style={{ outline: 'none', padding: '6px 16px', fontSize: '0.8125rem' }}
-                onClick={(e) => handleGoToSettings(e, '')}
+                onClick={(e) => handleGoToSettings(e)}
               >
                 前往设置-Skill启用平台
               </button>
@@ -327,7 +327,7 @@ export function BatchSyncModal({ isOpen, onClose, selectedSkillNames, onSyncComp
                             type="button"
                             className="btn-configure-platform"
                             title="配置路径"
-                            onClick={(e) => handleGoToSettings(e, platform.id)}
+                            onClick={(e) => handleGoToSettings(e)}
                             style={{ 
                               background: 'none', 
                               border: 'none', 
