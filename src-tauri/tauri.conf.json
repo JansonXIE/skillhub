@@ -25,7 +25,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNCNkQ3NDM5OEY2QzAxODEKUldTQkFXeVBPWFJ0TzdidHhJWGx1Ylp4VkxBK0VxUUNnVjZ0SUFlRUgwd0prRmxaMVlrS2pNQXoK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU5MDAwNkYxMzAxQzUyRjEKUldUeFVod3c4UVlBNmZvQUpjay94ZHFodmNwNU8zTmRjVFRlM25iMlp5TG5rcTRXV0QrZXplNVEK",
       "endpoints": [
         "https://github.com/JansonXIE/skillhub/releases/latest/download/latest.json"
       ],

@@ -6,7 +6,7 @@
 |---|---|
 | GitHub 仓库 | `JansonXIE/skillhub` |
 | 签名私钥 | `~/.tauri/skillhub.key` |
-| 私钥密码 | `skillhub2026!OTA` |
+| 私钥密码 | `<你的私钥密码>` |
 | 公钥 | 已写入 `tauri.conf.json` |
 | 安装包格式 | `.msi` (Windows) |
 
@@ -93,7 +93,7 @@ https://github.com/JansonXIE/skillhub/releases/latest/download/latest.json
 - **Secret**: 私钥文件的**完整内容**（去掉末尾换行），即：
 
 ```
-dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5NERwYlBJOTFndHBZalVJSWQ1aHcybklCN2FTeTVOYlJDR0R4VkZNNGduTUFBQkFBQUFBQUFBQUFBQUlBQUFBQUwwYzRISTNsQkd1YWt6YSsyS2hyL2lnazMrcUZJVFAwL1hna3JNMW96MjhvLzFuVlQvaS9iOTdUanJ4VjFLcDc0MjFuRDBQTVlFYWhhc0Jlc2N5RVladmFuTnZNVEROUWdXakY0NXk3dHNrc2h6ZDVWdVhiZzM0N3loS1R3OGNkS3Y0cUNqYklIaTA9Cg==
+<你的私钥内容，从 ~/.tauri/skillhub.key 复制>
 ```
 
 > 获取方式：在终端执行 `cat ~/.tauri/skillhub.key`，复制全部内容。
@@ -104,7 +104,7 @@ dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5NERwYlBJ
 - **Secret**:
 
 ```
-skillhub2026!OTA
+<你的私钥密码>
 ```
 
 添加完成后，Secrets 页面应显示这两个条目。
