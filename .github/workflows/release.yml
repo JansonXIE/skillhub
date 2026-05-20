@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -28,6 +31,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri:build -- --bundles msi
 
+      - name: Debug — list bundle output
+        run: dir /s /b src-tauri\target\release\bundle\msi\
+        shell: cmd
+
       - name: Generate latest.json manifest
         run: node scripts/generate-manifest.cjs
 
@@ -36,5 +43,5 @@ jobs:
         with:
           files: |
             src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/msi/*.msi.sig
+            src-tauri/target/release/bundle/msi/*.sig
             latest.json
