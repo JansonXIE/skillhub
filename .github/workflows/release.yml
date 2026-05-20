@@ -29,7 +29,7 @@ jobs:
         run: npm run tauri:build -- --bundles msi
 
       - name: Generate latest.json manifest
-        run: node scripts/generate-manifest.js
+        run: node scripts/generate-manifest.cjs
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
