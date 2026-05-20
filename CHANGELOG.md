@@ -21,6 +21,8 @@
   - 移除了原批量管理操作条中的“批量管理标签”按钮以及本地标签的全部读取与卡片底部渲染，删除了原临时文件 `BatchTagsModal.tsx`，保持技能管理主干界面的简洁利索。
 
 ### 修复
+- **修复 GitHub Actions 中由于缺少 MSI 包的更新包签名而导致构建发布工作流报错中断的问题**:
+  - 在 `tauri.conf.json` 里的 `bundle.targets` 配置中加入 `msi`（即改为 `["nsis", "msi"]`），确保构建 MSI 格式包时能够正常为 updater 生成对应的 `.msi.zip` 和 `.msi.zip.sig` 文件，从而使 `generate-manifest.cjs` 清单生成步骤能够成功运行。
 - **修复批量同步弹窗导致的应用白屏崩溃问题**:
   - 移除了 `BatchSyncModal.tsx` 中对 `lucide-react` 缺失的 `Github` 图标的导入，替换为内置 `GithubIconSvg` 组件，彻底解决由于预编译解析错误导致的应用白屏崩溃 Bug。
 
