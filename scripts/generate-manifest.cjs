@@ -15,15 +15,20 @@ const baseUrl = `https://github.com/${REPO}/releases/download/${TAG}`;
 const msiDir = path.join(__dirname, '..', 'src-tauri', 'target', 'release', 'bundle', 'msi');
 const files = fs.readdirSync(msiDir);
 
-const msiFile = files.find(f => f.endsWith('.msi') && !f.endsWith('.msi.sig'));
-const sigFile = files.find(f => f.endsWith('.msi.sig'));
+const zipFile = files.find(f => f.endsWith('.msi.zip'));
+const sigFile = files.find(f => f.endsWith('.msi.zip.sig'));
 
-if (!msiFile) {
-  console.error('MSI file not found in', msiDir);
+if (!zipFile) {
+  console.error('MSI zip file not found in', msiDir);
   process.exit(1);
 }
 
-const signature = sigFile ? fs.readFileSync(path.join(msiDir, sigFile), 'utf-8').trim() : '';
+if (!sigFile) {
+  console.error('Signature file (.msi.zip.sig) not found in', msiDir);
+  process.exit(1);
+}
+
+const signature = fs.readFileSync(path.join(msiDir, sigFile), 'utf-8').trim();
 
 const manifest = {
   version,
@@ -32,7 +37,7 @@ const manifest = {
   platforms: {
     'windows-x86_64': {
       signature,
-      url: `${baseUrl}/${msiFile}`
+      url: `${baseUrl}/${zipFile}`
     }
   }
 };

@@ -1,5 +1,14 @@
 # 更新日志 (CHANGELOG)
 
+## [0.2.5] - 2026-05-20
+
+### 修复
+- **修复在线 OTA 升级失败与版本不同步问题**:
+  - 在 `tauri.conf.json` 中将 `"createUpdaterArtifacts"` 启用（设为 `true`），使 Windows 端构建时能够自动生成 updater 所需的 `.msi.zip` 压缩包和对应的 `.msi.zip.sig` 签名文件。
+  - 编写了 `scripts/update-version.cjs` 脚本，在构建打包前根据发布 Tag 自动、动态地同步更新 `tauri.conf.json`、`package.json` 和 `Cargo.toml` 中的版本号，解决安装新包后应用内部版本仍然显示旧版本的 Bug。
+  - 优化 `scripts/generate-manifest.cjs` 清单生成脚本，使其查找 `.msi.zip` 和 `.msi.zip.sig`，同时对签名进行强校验（若签名文件缺失或为空则中断报错退出），确保发布生成的 `latest.json` 包含正确的下载链接与合法的 base64 Minisign 签名数据，从而彻底根治客户端更新时提示 `Invalid encoding in minisign data` 的异常。
+  - 调整 `.github/workflows/release.yml` 构建发布工作流，在构建前执行版本更新脚本，并确保在发布时完整上传 `.msi`、`.msi.zip`、`.msi.zip.sig` 以及最新的 `latest.json` 清单文件。
+
 ## [0.2.4] - 2026-05-20
 
 ### 新增
