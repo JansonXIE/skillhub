@@ -1,5 +1,28 @@
 # 更新日志 (CHANGELOG)
 
+## [0.2.4] - 2026-05-20
+
+### 新增
+- **OTA 自动更新与 CI/CD 流水线集成**:
+  - 集成 Tauri 官方插件 `@tauri-apps/plugin-updater`，实现应用启动自动检测新版本，并提供非侵入式的更新下载提示。
+  - 构建端到端的 GitHub Actions 工作流 (`release.yml`)，支持双端（Windows/macOS）自动签名构建、GitHub Release 发布以及源码归档。
+  - 新增 `useUpdater` 核心 Hook 与 `UpdateNotification` 精美通知组件，完美打通更新检测、静默下载、UI 反馈及一键重启安装的全链路流程。
+  - 产出高水平技术文档 `OTA-deployment-guide.md` 与 `OTA-update-architecture.md`，深度覆盖了从应用签名、公私钥管理到自定义 Manifest 自动化生成的全套方案。
+- **推荐资源页面 (Resources) 上线**:
+  - 在侧边栏“推荐资源”入口对应新增独立资源页面，集中展示技能构建与代码代理实践资料。
+  - 新增两个可直接访问的外部最佳实践链接：Agent Skills Skill Creation Best Practices 与 Claude Code 最佳实践（中文）。
+  - 新增内置 PDF 资源 `The-Complete-Guide-to-Building-Skill-for-Claude.pdf`，支持在应用内通过弹层直接预览。
+
+### 优化
+- **推荐资源卡片与预览交互打磨**:
+  - 将内置 PDF 资源卡片调整为与外部链接卡片保持一致的网格尺寸与展示风格，统一页面视觉节奏。
+  - 简化 PDF 卡片操作区，仅保留应用内预览入口，避免重复操作造成干扰。
+
+### 修复
+- **Tauri 桌面端外部链接打开行为修复**:
+  - 修复了在桌面端点击外部资源链接后无响应的问题，不再依赖普通浏览器锚点跳转。
+  - 集成 `@tauri-apps/plugin-opener` 并补齐 Tauri capability 权限配置，确保外部链接能够调用系统默认浏览器正常打开。
+
 ## [0.2.3] - 2026-05-19
 
 ### 新增

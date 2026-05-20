@@ -5,6 +5,7 @@ import { Favorites } from './pages/Favorites';
 import { Distributed } from './pages/Distributed';
 import { Pending } from './pages/Pending';
 import { Store } from './pages/Store';
+import { Resources } from './pages/Resources';
 import { Settings } from './pages/Settings';
 import { SkillDetail } from './pages/SkillDetail';
 import './App.css';
@@ -19,6 +20,7 @@ function App() {
           <Route path="distributed" element={<Distributed />} />
           <Route path="pending" element={<Pending />} />
           <Route path="store" element={<Store />} />
+          <Route path="resources" element={<Resources />} />
           <Route path="settings" element={<Settings />} />
           <Route path="skill/:skillName" element={<SkillDetail />} />
         </Route>
