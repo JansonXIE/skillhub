@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
-import { Box, Star, Globe, Clock, Store, Link as LinkIcon, Settings } from 'lucide-react';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Box, Star, Globe, Clock, Store, Link as LinkIcon, Settings, Plus, ChevronDown, GitBranch, Trash2 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
+import { AddStoreModal } from './modals/AddStoreModal';
+import type { StoreRepo } from '../types/store';
 
 interface SkillInfo {
   name: string;
@@ -13,7 +15,6 @@ const NAV_ITEMS = [
   { name: '收藏', icon: Star, path: '/favorites' },
   { name: '已分发', icon: Globe, path: '/distributed' },
   { name: '待分发', icon: Clock, path: '/pending' },
-  { name: 'Skill 商店', icon: Store, path: '/store' },
 ];
 
 const BOTTOM_LINKS = [
@@ -26,6 +27,13 @@ export function Sidebar() {
   const [favoritesCount, setFavoritesCount] = useState(0);
   const [distributedCount, setDistributedCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
+  const [storeExpanded, setStoreExpanded] = useState(true);
+  const [storeRepos, setStoreRepos] = useState<StoreRepo[]>([]);
+  const [showAddStore, setShowAddStore] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isStoreActive = location.pathname.startsWith('/store');
 
   const fetchSkillsCount = async () => {
     try {
@@ -58,15 +66,42 @@ export function Sidebar() {
     }
   };
 
+  const loadStoreRepos = () => {
+    const stored = localStorage.getItem('skillhub-store-repos');
+    if (stored) {
+      try {
+        setStoreRepos(JSON.parse(stored));
+      } catch { /* ignore */ }
+    } else {
+      setStoreRepos([]);
+    }
+  };
+
+  const handleDeleteStoreRepo = (e: React.MouseEvent, repoId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const updated = storeRepos.filter(r => r.id !== repoId);
+    setStoreRepos(updated);
+    localStorage.setItem('skillhub-store-repos', JSON.stringify(updated));
+    window.dispatchEvent(new Event('store-repos-updated'));
+    // If we're currently viewing the deleted repo, navigate to store
+    if (location.pathname.startsWith('/store/')) {
+      navigate('/store');
+    }
+  };
+
   useEffect(() => {
     fetchSkillsCount();
+    loadStoreRepos();
     window.addEventListener('skills-updated', fetchSkillsCount);
     window.addEventListener('favorites-updated', fetchSkillsCount);
     window.addEventListener('distributed-updated', fetchSkillsCount);
+    window.addEventListener('store-repos-updated', loadStoreRepos);
     return () => {
       window.removeEventListener('skills-updated', fetchSkillsCount);
       window.removeEventListener('favorites-updated', fetchSkillsCount);
       window.removeEventListener('distributed-updated', fetchSkillsCount);
+      window.removeEventListener('store-repos-updated', loadStoreRepos);
     };
   }, []);
 
@@ -102,6 +137,77 @@ export function Sidebar() {
             </NavLink>
           );
         })}
+
+        {/* Store Section - Expandable */}
+        <div className="store-nav-group">
+          <button
+            className={`nav-item store-nav-header ${isStoreActive ? 'active' : ''}`}
+            onClick={() => {
+              setStoreExpanded(!storeExpanded);
+              if (!isStoreActive) {
+                navigate('/store');
+              }
+            }}
+            style={{ 
+              width: '100%', 
+              border: 'none', 
+              cursor: 'pointer',
+              outline: 'none',
+              textAlign: 'left',
+              backgroundColor: isStoreActive ? 'var(--color-primary)' : 'transparent',
+              color: isStoreActive ? 'var(--text-inverse)' : 'var(--text-secondary)',
+            }}
+          >
+            <Store size={18} />
+            <span>Skill 商店</span>
+            <ChevronDown 
+              size={14} 
+              style={{ 
+                marginLeft: 'auto',
+                transition: 'transform 0.2s ease',
+                transform: storeExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                opacity: 0.6,
+              }} 
+            />
+          </button>
+
+          {storeExpanded && (
+            <div className="store-nav-subitems">
+              {storeRepos.map((storeRepo) => {
+                const isActive = location.pathname === `/store/${storeRepo.owner}/${storeRepo.repo}`;
+                return (
+                  <NavLink
+                    key={storeRepo.id}
+                    to={`/store/${storeRepo.owner}/${storeRepo.repo}`}
+                    className={`store-sub-item ${isActive ? 'active' : ''}`}
+                  >
+                    <GitBranch size={14} />
+                    <span className="store-sub-name" title={`${storeRepo.owner}/${storeRepo.repo}`}>
+                      {storeRepo.name}
+                    </span>
+                    <span className="store-sub-count">{storeRepo.skillCount}</span>
+                    <button
+                      className="store-sub-delete"
+                      onClick={(e) => handleDeleteStoreRepo(e, storeRepo.id)}
+                      title="移除商店"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </NavLink>
+                );
+              })}
+
+              <button
+                className="store-add-btn"
+                onClick={() => setShowAddStore(true)}
+                style={{ outline: 'none' }}
+              >
+                <Plus size={14} />
+                <span>添加商店</span>
+              </button>
+            </div>
+          )}
+        </div>
       </nav>
 
       <div className="sidebar-bottom">
@@ -119,6 +225,12 @@ export function Sidebar() {
           );
         })}
       </div>
+
+      <AddStoreModal
+        isOpen={showAddStore}
+        onClose={() => setShowAddStore(false)}
+        onAdded={() => loadStoreRepos()}
+      />
     </aside>
   );
 }

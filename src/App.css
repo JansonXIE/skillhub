@@ -2113,4 +2113,144 @@ input:focus,
   color: var(--text-main);
 }
 
+/* ============================
+   Skill Store Sidebar Navigation
+   ============================ */
+
+.store-nav-group {
+  margin-top: 0.125rem;
+}
+
+.store-nav-header {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.store-nav-subitems {
+  padding: 0.25rem 0 0.25rem 0;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.store-sub-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4375rem 0.75rem 0.4375rem 2.25rem;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.8125rem;
+  margin-bottom: 0.125rem;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  position: relative;
+}
+
+.store-sub-item:hover {
+  background-color: var(--border-light);
+  color: var(--text-main);
+}
+
+.store-sub-item.active {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.dark .store-sub-item.active {
+  background-color: rgba(59, 130, 246, 0.15);
+}
+
+.store-sub-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-sub-count {
+  font-size: 0.6875rem;
+  background-color: var(--border-light);
+  color: var(--text-secondary);
+  padding: 0.0625rem 0.375rem;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.store-sub-item.active .store-sub-count {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: var(--color-primary);
+}
+
+.store-sub-delete {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.store-sub-item:hover .store-sub-delete {
+  display: flex;
+}
+
+.store-sub-item:hover .store-sub-count {
+  display: none;
+}
+
+.store-sub-delete:hover {
+  color: #ef4444;
+  background-color: #fee2e2;
+}
+
+.dark .store-sub-delete:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.store-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4375rem 0.75rem 0.4375rem 2.25rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  outline: none;
+  text-align: left;
+}
+
+.store-add-btn:hover {
+  background-color: rgba(59, 130, 246, 0.06);
+}
+
+.dark .store-add-btn:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+/* Spin Animation for Loaders */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-animation {
+  animation: spin 1s linear infinite;
+}
+
 

@@ -1,5 +1,20 @@
 # 更新日志 (CHANGELOG)
 
+## [0.2.7] - 2026-05-21
+
+### 新增
+- **Skill 商店功能**:
+  - 新增完整的 Skill 商店模块，支持添加 GitHub 公开仓库作为 Skill 来源进行浏览和导入。
+  - **智能 Repo 结构检测**：自动检测两种常见的 skill 仓库结构——含 `skills/` 子目录的仓库（如 `anthropics/skills`）和根目录即 skill 文件夹的仓库（如 `JansonXIE/skills-test`），无需用户手动配置。
+  - **侧边栏可展开商店导航**：将侧边栏「Skill 商店」改为可展开/折叠的分组导航，展开后列出所有已添加的商店仓库，每个仓库显示名称和 skill 数量徽章，支持悬停显示删除按钮。底部提供「+ 添加商店」快捷入口。
+  - **添加商店弹窗**：新增 `AddStoreModal.tsx`，支持输入 GitHub 仓库 URL 后自动解析、检测结构并获取 skill 列表，带有加载状态和错误提示。
+  - **商店页面**：重构 `Store.tsx`，展示选中仓库下的所有 skill 卡片，支持搜索过滤、一键导入到本地、在 GitHub 中查看等操作。skill 卡片采用渐变图标和来源标签区分商店来源。
+  - **商店 Skill 详情页**：新增 `StoreSkillDetail.tsx`，通过 `/store/:owner/:repo/:skillName` 路由访问。从 GitHub raw content 获取并渲染 SKILL.md 内容，提供"导入到我的 Skills"按钮。
+  - **GitHub API 工具类**：新增 `src/utils/github.ts`，封装 URL 解析、结构检测、skill 列表获取、内容下载、描述提取等功能，内置 `sessionStorage` 缓存以减少 API 请求。
+  - **导入工具**：新增 `src/utils/importStore.ts`，支持从 GitHub 商店下载 skill 文件并通过 Tauri 命令保存到本地 `my_skills` 目录。
+  - **路由扩展**：新增 `store/:owner/:repo` 和 `store/:owner/:repo/:skillName` 两条嵌套路由。
+  - **样式扩展**：新增侧边栏商店子导航、添加按钮、删除按钮以及加载动画的完整 CSS 样式，支持暗色模式。
+
 ## [0.2.6] - 2026-05-21
 
 ### 新增
