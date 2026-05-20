@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckSquare, RefreshCw, Box, Download, Star, Trash2 } from 'lucide-react';
+import { CheckSquare, RefreshCw, Box, Download, Star, Trash2, Square, Send, X } from 'lucide-react';
 import { EmptyState } from '../components/EmptyState';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
+import { BatchSyncModal } from '../components/modals/BatchSyncModal';
 
 
 interface SkillInfo {
@@ -15,7 +16,94 @@ export function MySkills() {
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [selectedSkills, setSelectedSkills] = useState<Set<string>>(new Set());
+  const [showSyncModal, setShowSyncModal] = useState(false);
   const navigate = useNavigate();
+
+  const toggleSelectSkill = (skillName: string) => {
+    const newSelected = new Set(selectedSkills);
+    if (newSelected.has(skillName)) {
+      newSelected.delete(skillName);
+    } else {
+      newSelected.add(skillName);
+    }
+    setSelectedSkills(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedSkills.size === skills.length) {
+      setSelectedSkills(new Set());
+    } else {
+      setSelectedSkills(new Set(skills.map(s => s.name)));
+    }
+  };
+
+  const handleBatchFavorite = () => {
+    const selectedList = Array.from(selectedSkills);
+    if (selectedList.length === 0) return;
+
+    const stored = localStorage.getItem('skillhub-favorites');
+    let currentFavorites: string[] = stored ? JSON.parse(stored) : [];
+
+    const allSelectedAreFav = selectedList.every(name => currentFavorites.includes(name));
+    let newFavorites: string[];
+
+    if (allSelectedAreFav) {
+      newFavorites = currentFavorites.filter(name => !selectedList.includes(name));
+    } else {
+      const toAdd = selectedList.filter(name => !currentFavorites.includes(name));
+      newFavorites = [...currentFavorites, ...toAdd];
+    }
+
+    localStorage.setItem('skillhub-favorites', JSON.stringify(newFavorites));
+    setFavorites(newFavorites);
+    window.dispatchEvent(new CustomEvent('favorites-updated'));
+  };
+
+  const handleBatchDelete = async () => {
+    const selectedList = Array.from(selectedSkills);
+    if (selectedList.length === 0) return;
+
+    const confirmed = window.confirm(`确定要批量删除选中的 ${selectedList.length} 个技能吗？此操作不可逆！`);
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      let dataPath = localStorage.getItem('skillhub-data-path');
+      if (!dataPath) {
+        const baseDir = await appDataDir();
+        dataPath = await join(baseDir, 'SkillsHub');
+      }
+
+      for (const skillName of selectedList) {
+        try {
+          await invoke('delete_local_skill', { dataPath, skillName });
+          
+          const stored = localStorage.getItem('skillhub-favorites');
+          if (stored) {
+            const currentFavorites: string[] = JSON.parse(stored);
+            if (currentFavorites.includes(skillName)) {
+              const newFavorites = currentFavorites.filter(name => name !== skillName);
+              localStorage.setItem('skillhub-favorites', JSON.stringify(newFavorites));
+            }
+          }
+        } catch (e) {
+          console.error(`删除 ${skillName} 失败:`, e);
+        }
+      }
+
+      setSelectedSkills(new Set());
+      setIsBatchMode(false);
+      
+      window.dispatchEvent(new CustomEvent('favorites-updated'));
+      window.dispatchEvent(new CustomEvent('skills-updated'));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchSkills = async () => {
     try {
@@ -116,13 +204,17 @@ export function MySkills() {
     }, 150);
   };
 
+  const handleSkillsUpdated = () => {
+    fetchSkills();
+  };
+
   useEffect(() => {
     fetchSkills();
     loadFavorites();
-    window.addEventListener('skills-updated', fetchSkills);
+    window.addEventListener('skills-updated', handleSkillsUpdated);
     window.addEventListener('favorites-updated', loadFavorites);
     return () => {
-      window.removeEventListener('skills-updated', fetchSkills);
+      window.removeEventListener('skills-updated', handleSkillsUpdated);
       window.removeEventListener('favorites-updated', loadFavorites);
     };
   }, []);
@@ -165,16 +257,90 @@ export function MySkills() {
         </div>
         
         <div className="action-bar">
-          <button className="btn btn-outline flex items-center gap-2">
+          <button 
+            className={`btn btn-outline flex items-center gap-2 ${isBatchMode ? 'active' : ''}`}
+            style={{ outline: 'none' }}
+            onClick={() => {
+              setIsBatchMode(!isBatchMode);
+              setSelectedSkills(new Set());
+            }}
+          >
             <CheckSquare size={16} />
             批量管理
           </button>
 
-          <button className="btn-icon btn-outline" style={{ padding: '0.5rem 0.75rem' }} onClick={() => window.dispatchEvent(new CustomEvent('skills-updated'))}>
+          <button className="btn-icon btn-outline" style={{ padding: '0.5rem 0.75rem', outline: 'none' }} onClick={() => window.dispatchEvent(new CustomEvent('skills-updated'))}>
             <RefreshCw size={16} />
           </button>
         </div>
       </div>
+
+      {isBatchMode && (
+        <div className="batch-toolbar fade-in">
+          <div className="batch-info">
+            <span className="batch-info-label">批量模式</span>
+            <span className="batch-info-count">已选 {selectedSkills.size} 项</span>
+          </div>
+          
+          <div className="batch-actions">
+            <button 
+              className="btn btn-outline flex items-center gap-2"
+              title={selectedSkills.size === skills.length ? "清空" : "全选"}
+              style={{ outline: 'none' }}
+              onClick={toggleSelectAll}
+            >
+              {selectedSkills.size === skills.length ? <CheckSquare size={16} className="text-primary" /> : <Square size={16} />}
+              <span>{selectedSkills.size === skills.length ? "清空" : "全选"}</span>
+            </button>
+            
+            <button 
+              className="btn btn-outline flex items-center gap-2"
+              disabled={selectedSkills.size === 0}
+              style={{ outline: 'none' }}
+              onClick={handleBatchFavorite}
+            >
+              <Star 
+                size={16} 
+                fill={selectedSkills.size > 0 && Array.from(selectedSkills).every(name => favorites.includes(name)) ? "var(--color-primary)" : "none"}
+                style={{ color: selectedSkills.size > 0 && Array.from(selectedSkills).every(name => favorites.includes(name)) ? "var(--color-primary)" : "currentColor" }}
+              />
+              <span>{selectedSkills.size > 0 && Array.from(selectedSkills).every(name => favorites.includes(name)) ? "取消收藏" : "添加收藏"}</span>
+            </button>
+            
+            <button 
+              className="btn btn-primary flex items-center gap-2"
+              disabled={selectedSkills.size === 0}
+              style={{ outline: 'none' }}
+              onClick={() => setShowSyncModal(true)}
+            >
+              <Send size={16} />
+              <span>批量同步到平台</span>
+            </button>
+            
+            <button 
+              className="btn btn-outline btn-outline--danger flex items-center gap-2"
+              disabled={selectedSkills.size === 0}
+              style={{ outline: 'none' }}
+              onClick={handleBatchDelete}
+            >
+              <Trash2 size={16} />
+              <span>删除</span>
+            </button>
+            
+            <button 
+              className="btn btn-outline flex items-center gap-2"
+              style={{ outline: 'none' }}
+              onClick={() => {
+                setSelectedSkills(new Set());
+                setIsBatchMode(false);
+              }}
+            >
+              <X size={16} />
+              <span>取消</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center p-12 text-secondary">加载中...</div>
@@ -186,33 +352,55 @@ export function MySkills() {
             <div 
               key={index} 
               id={`skill-card-${skill.name}`}
-              className="skill-card hover-pointer" 
-              onClick={() => navigate(`/skill/${skill.name}`)}
+              className={`skill-card hover-pointer ${isBatchMode ? 'batch-mode' : ''} ${selectedSkills.has(skill.name) ? 'selected' : ''}`}
+              onClick={() => {
+                if (isBatchMode) {
+                  toggleSelectSkill(skill.name);
+                } else {
+                  navigate(`/skill/${skill.name}`);
+                }
+              }}
             >
               <div className="skill-card-header">
-                <div className="skill-card-icon">
-                  {skill.name.charAt(0).toUpperCase()}
+                <div className="flex items-center gap-3">
+                  {isBatchMode && (
+                    <div 
+                      className={`skill-card-checkbox ${selectedSkills.has(skill.name) ? 'selected' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSelectSkill(skill.name);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                    >
+                      {selectedSkills.has(skill.name) ? <CheckSquare size={18} className="text-primary" style={{ color: 'var(--color-primary)' }} /> : <Square size={18} style={{ color: 'var(--color-text-tertiary)' }} />}
+                    </div>
+                  )}
+                  <div className="skill-card-icon">
+                    {skill.name.charAt(0).toUpperCase()}
+                  </div>
                 </div>
-                <div className="skill-card-actions" onClick={(e) => e.stopPropagation()}>
-                  <button className="skill-action-btn" title="安装到平台">
-                    <Download size={14} />
-                  </button>
-                  <button 
-                    className="skill-action-btn focus:outline-none" 
-                    title={favorites.includes(skill.name) ? "取消收藏" : "添加收藏"} 
-                    onClick={(e) => toggleFavorite(e, skill.name)}
-                    style={{ outline: 'none' }}
-                  >
-                    <Star 
-                      size={14} 
-                      fill={favorites.includes(skill.name) ? "var(--color-primary)" : "none"}
-                      style={{ color: favorites.includes(skill.name) ? "var(--color-primary)" : "currentColor" }}
-                    />
-                  </button>
-                  <button className="skill-action-btn skill-action-btn--danger" title="删除" onClick={(e) => handleDelete(e, skill.name)}>
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                {!isBatchMode && (
+                  <div className="skill-card-actions" onClick={(e) => e.stopPropagation()}>
+                    <button className="skill-action-btn" title="安装到平台">
+                      <Download size={14} />
+                    </button>
+                    <button 
+                      className="skill-action-btn focus:outline-none" 
+                      title={favorites.includes(skill.name) ? "取消收藏" : "添加收藏"} 
+                      onClick={(e) => toggleFavorite(e, skill.name)}
+                      style={{ outline: 'none' }}
+                    >
+                      <Star 
+                        size={14} 
+                        fill={favorites.includes(skill.name) ? "var(--color-primary)" : "none"}
+                        style={{ color: favorites.includes(skill.name) ? "var(--color-primary)" : "currentColor" }}
+                      />
+                    </button>
+                    <button className="skill-action-btn skill-action-btn--danger" title="删除" onClick={(e) => handleDelete(e, skill.name)}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <h3 className="skill-card-title">{skill.name}</h3>
@@ -224,6 +412,17 @@ export function MySkills() {
           ))}
         </div>
       )}
+
+      <BatchSyncModal 
+        isOpen={showSyncModal}
+        onClose={() => setShowSyncModal(false)}
+        selectedSkillNames={Array.from(selectedSkills)}
+        onSyncComplete={() => {
+          setSelectedSkills(new Set());
+          setIsBatchMode(false);
+          window.dispatchEvent(new CustomEvent('skills-updated'));
+        }}
+      />
     </div>
   );
 }

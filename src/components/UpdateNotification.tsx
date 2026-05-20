@@ -5,6 +5,9 @@ export default function UpdateNotification() {
   const { status, checkUpdate, downloadAndInstall, dismiss } = useUpdater();
 
   useEffect(() => {
+    const isAutoCheck = localStorage.getItem('skillhub-auto-check-update') !== 'false';
+    if (!isAutoCheck) return;
+
     const timer = setTimeout(checkUpdate, 3000);
     return () => clearTimeout(timer);
   }, [checkUpdate]);

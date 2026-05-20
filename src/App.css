@@ -1808,3 +1808,309 @@ input:focus,
   box-shadow: var(--shadow-sm);
 }
 
+/* Batch Management Styles */
+.batch-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--border-light);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1.25rem;
+  margin-bottom: 1.5rem;
+  animation: fadeIn var(--transition-fast) ease-out;
+}
+
+.dark .batch-toolbar {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.batch-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.batch-info-label {
+  font-size: 0.75rem;
+  color: var(--color-primary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.batch-info-count {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Custom button overrides for batch actions to remove outlines and add colors */
+.batch-actions .btn {
+  height: 36px;
+  padding: 0 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  outline: none !important;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.batch-actions .btn:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: var(--color-primary);
+}
+
+/* Specific red border-red bg style for Delete in batch */
+.batch-actions .btn-outline--danger {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.batch-actions .btn-outline--danger:hover:not(:disabled) {
+  background-color: #ef4444;
+  border-color: #ef4444;
+  color: white;
+}
+
+.batch-actions .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Active style for Batch Management toggle button */
+.action-bar .btn.active {
+  background-color: var(--color-primary);
+  color: var(--text-inverse);
+  border-color: var(--color-primary);
+}
+
+/* Skill card in batch mode */
+.skill-card.batch-mode {
+  position: relative;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.skill-card.batch-mode.selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary), var(--shadow-sm);
+  background-color: rgba(59, 130, 246, 0.02);
+}
+
+.dark .skill-card.batch-mode.selected {
+  background-color: rgba(59, 130, 246, 0.04);
+}
+
+.skill-card-checkbox {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: transform var(--transition-fast);
+}
+
+.skill-card-checkbox:hover {
+  transform: scale(1.1);
+}
+
+.skill-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  transition: all var(--transition-fast);
+}
+
+.skill-tag-badge:hover {
+  background-color: var(--border-light) !important;
+  border-color: var(--text-tertiary) !important;
+}
+
+/* ============================
+   About and Toggle Switch Styles
+   ============================ */
+
+.settings-switch-label {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.settings-switch-label input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.settings-switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border-color);
+  transition: all 0.2s ease;
+  border-radius: 24px;
+}
+
+.settings-switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: all 0.2s ease;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.settings-switch-label input:checked + .settings-switch-slider {
+  background-color: var(--color-primary);
+}
+
+.settings-switch-label input:focus-visible + .settings-switch-slider {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+}
+
+.settings-switch-label input:checked + .settings-switch-slider:before {
+  transform: translateX(20px);
+}
+
+.about-card-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.about-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  text-decoration: none;
+  color: inherit;
+  outline: none;
+}
+
+.about-item:hover {
+  background-color: var(--bg-app);
+}
+
+.about-item:focus-visible {
+  outline: none;
+  background-color: var(--border-light);
+}
+
+.about-item-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 1rem;
+  flex-shrink: 0;
+}
+
+.about-item-icon.github-bg {
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+}
+
+.about-item-icon.email-bg {
+  background-color: #eff6ff;
+  color: var(--color-primary);
+}
+
+.dark .about-item-icon.email-bg {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+}
+
+.about-item-info {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.about-item-title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-main);
+  margin-bottom: 0.125rem;
+}
+
+.about-item-subtitle {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.about-item-divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 0 1rem;
+}
+
+/* Batch Sync Modal Custom Styles */
+.sync-platform-card:hover {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
+}
+
+.sync-platform-card.selected:hover {
+  background-color: rgba(59, 130, 246, 0.04) !important;
+}
+
+.btn-configure-platform {
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.btn-configure-platform:hover {
+  opacity: 1 !important;
+  transform: scale(1.1);
+}
+
+.btn-select-all-toggle {
+  transition: color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.btn-select-all-toggle:hover {
+  opacity: 0.8;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  background-color: var(--border-light);
+  color: var(--text-main);
+}
+
+
