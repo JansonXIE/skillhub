@@ -31,8 +31,7 @@ export function AddModelModal({ endpoint, onClose, onAdd }: AddModelModalProps) 
   const [modelName, setModelName] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-
+  
   const baseUrl = apiUrl.trim().replace(/\/$/, '');
   const previewUrl = baseUrl ? `${baseUrl}/chat/completions` : '';
 
@@ -177,23 +176,7 @@ export function AddModelModal({ endpoint, onClose, onAdd }: AddModelModalProps) 
             />
           </div>
 
-          {/* 高级参数 折叠 */}
-          <button
-            className="ai-advanced-toggle"
-            onClick={() => setIsAdvancedOpen(v => !v)}
-          >
-            <div>
-              <div className="ai-advanced-title">高级参数</div>
-              <div className="ai-advanced-desc">为当前对话模型配置生成参数。</div>
-            </div>
-            <span className={`ai-advanced-chevron ${isAdvancedOpen ? 'open' : ''}`}>▾</span>
-          </button>
-          {isAdvancedOpen && (
-            <div className="ai-advanced-content">
-              <p className="text-secondary" style={{ fontSize: '0.8125rem' }}>暂无高级参数配置。</p>
-            </div>
-          )}
-        </div>
+                  </div>
 
         {/* Footer */}
         <div className="ai-modal-footer ai-modal-footer-split">
