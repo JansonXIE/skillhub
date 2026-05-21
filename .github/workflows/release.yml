@@ -32,7 +32,7 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npm run tauri:build -- --bundles nsis,msi
+        run: npm run tauri:build
 
       - name: Debug — list NSIS bundle output
         run: dir /s /b src-tauri\target\release\bundle\nsis\
@@ -41,6 +41,29 @@ jobs:
       - name: Debug — list MSI bundle output
         run: dir /s /b src-tauri\target\release\bundle\msi\
         shell: cmd
+
+      - name: Create NSIS updater zip (if missing)
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          $nsisDir = "src-tauri\target\release\bundle\nsis"
+          $existingZip = Get-ChildItem -Path $nsisDir -Filter "*.nsis.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $existingZip) {
+            Write-Host "No .nsis.zip found, creating from installer exe..."
+            $exe = Get-ChildItem -Path $nsisDir -Filter "*_x64-setup.exe" | Select-Object -First 1
+            if (-not $exe) { throw "No NSIS installer exe found in $nsisDir" }
+            $zipPath = Join-Path $nsisDir "$($exe.BaseName).nsis.zip"
+            Write-Host "Compressing $($exe.Name) -> $($exe.BaseName).nsis.zip"
+            Compress-Archive -LiteralPath $exe.FullName -DestinationPath $zipPath -CompressionLevel Optimal
+            Write-Host "Signing $zipPath with tauri signer..."
+            npx tauri signer sign $zipPath
+            if ($LASTEXITCODE -ne 0) { throw "tauri signer sign failed with exit code $LASTEXITCODE" }
+            Write-Host "Updater artifacts created and signed successfully"
+          } else {
+            Write-Host "Using existing updater zip: $($existingZip.Name)"
+          }
 
       - name: Generate latest.json manifest
         run: node scripts/generate-manifest.cjs
