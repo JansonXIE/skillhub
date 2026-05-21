@@ -18,6 +18,20 @@ export function Store() {
   const [importingSkill, setImportingSkill] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
 
+  const highlightSkill = (skillName: string) => {
+    setSearchQuery('');
+    setTimeout(() => {
+      const card = document.getElementById(`skill-card-${skillName}`);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('highlighted-skill-card');
+        setTimeout(() => {
+          card.classList.remove('highlighted-skill-card');
+        }, 4500);
+      }
+    }, 150);
+  };
+
   // Load store repos from localStorage
   useEffect(() => {
     const loadRepos = () => {
@@ -64,6 +78,30 @@ export function Store() {
 
     fetchSkills();
   }, [activeRepo]);
+
+  useEffect(() => {
+    const handleHighlight = (e: Event) => {
+      const skillName = (e as CustomEvent).detail?.skillName;
+      if (skillName) {
+        highlightSkill(skillName);
+      }
+    };
+
+    window.addEventListener('highlight-skill', handleHighlight);
+    return () => {
+      window.removeEventListener('highlight-skill', handleHighlight);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!loading && skills.length > 0) {
+      const targetSkill = sessionStorage.getItem('highlight-skill');
+      if (targetSkill) {
+        highlightSkill(targetSkill);
+        sessionStorage.removeItem('highlight-skill');
+      }
+    }
+  }, [loading, skills]);
 
   // Fetch descriptions in background for displayed skills
   useEffect(() => {
@@ -238,6 +276,7 @@ export function Store() {
             return (
               <div
                 key={skill.name}
+                id={`skill-card-${skill.name}`}
                 className="skill-card hover-pointer"
                 onClick={() => navigate(`/store/${skill.owner}/${skill.repo}/${skill.name}`)}
               >
