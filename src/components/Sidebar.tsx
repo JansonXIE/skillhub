@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Box, Star, Globe, Clock, Store, Link as LinkIcon, Settings, Plus, ChevronDown, GitBranch, Trash2 } from 'lucide-react';
+import { Box, Star, Globe, Clock, Store, Link as LinkIcon, Settings, Plus, ChevronDown, GitBranch, Server, Trash2 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { AddStoreModal } from './modals/AddStoreModal';
@@ -175,14 +175,15 @@ export function Sidebar() {
             <div className="store-nav-subitems">
               {storeRepos.map((storeRepo) => {
                 const isActive = location.pathname === `/store/${storeRepo.owner}/${storeRepo.repo}`;
+                const isGerrit = storeRepo.type === 'gerrit';
                 return (
                   <NavLink
                     key={storeRepo.id}
                     to={`/store/${storeRepo.owner}/${storeRepo.repo}`}
                     className={`store-sub-item ${isActive ? 'active' : ''}`}
                   >
-                    <GitBranch size={14} />
-                    <span className="store-sub-name" title={`${storeRepo.owner}/${storeRepo.repo}`}>
+                    {isGerrit ? <Server size={14} /> : <GitBranch size={14} />}
+                    <span className="store-sub-name" title={isGerrit ? storeRepo.url : `${storeRepo.owner}/${storeRepo.repo}`}>
                       {storeRepo.name}
                     </span>
                     <span className="store-sub-count">{storeRepo.skillCount}</span>

@@ -1,5 +1,39 @@
 # 更新日志 (CHANGELOG)
 
+## [0.2.9] - 2026-05-22
+
+### 新增
+- **Skill 商店支持 Gerrit 仓库**:
+  - 添加商店弹窗新增 GitHub / Gerrit 类型切换，Gerrit 模式下支持 `ssh://user@host:port/project` 格式的仓库 URL。
+  - 在 `StoreRepo` 类型中新增 `type`、`sshUser`、`branch` 字段，区分 GitHub 和 Gerrit 仓库来源。
+  - 侧边栏商店列表对 Gerrit 仓库显示 `Server` 图标和 Gerrit 标签，悬停显示完整 URL。
+- **Git 部分克隆（Partial Clone）策略**:
+  - 后端改为使用 `git clone --depth 1 --filter=blob:none --no-checkout` 仅拉取 tree 和 commit 元数据（~几十 KB），不再占用完整仓库的磁盘空间。
+  - 文件内容按需通过 `git show origin/<branch>:<path>` 实时获取，导入时逐个下载并写入 `my_skills/` 目录。
+  - 每次打开商店时通过 `git fetch --depth 1` 增量更新远程 tree，保证新 skill 上线后能及时显示。
+- **添加商店支持自定义名称**:
+  - 在添加商店弹窗中新增「仓库名称（可选）」输入框，填写后覆盖默认解析名称，留空则自动使用仓库名称。
+
+### 优化
+- **Store.tsx**:
+  - 移除每个 skill 商店内嵌的「搜索 Skill...」搜索框（顶部 Header 已有全局搜索栏），精简页面布局。
+  - 统一使用 `fetchStoreSkills` / `importSkillFromStoreRepo` 处理 GitHub 和 Gerrit 两种仓库类型的技能列表和导入。
+- **StoreSkillDetail.tsx**: 移除 Gerrit 仓库下不使用的 GitHub 外部链接按钮。
+- **Skill 卡片**: 移除 GitHub 仓库 skill 卡片的「在 GitHub 中查看」`ExternalLink` 按钮，避免与仓库级别的链接按钮重复。
+
+### 修复
+- **修复 ExternalLink 按钮在 Tauri 中无法打开链接**: 将仓库名称旁的 `<a>` 标签改为 `<button>` + `openUrl()`（`@tauri-apps/plugin-opener`），解决 Tauri WebView 拦截 `target="_blank"` 导致链接无法打开的问题。
+- **移除添加模型弹窗中的高级参数折叠区**: `AddModelModal` 中「高级参数」折叠区域（含 `isAdvancedOpen` 状态和展开内容）已被移除。
+
+### 后端新增命令
+- `fetch_store_skills`: 通过部分克隆获取商店仓库的 skill 目录列表。
+- `fetch_store_skill_content`: 按需获取单个 skill 的 SKILL.md / README.md 内容。
+- `fetch_store_skill_file_tree`: 获取 skill 目录的文件树。
+- `import_skill_from_store`: 将商店中的 skill 按需下载到本地 `my_skills/` 目录。
+
+### 新增文件
+- `src/utils/storeRepo.ts`: 封装 Gerrit URL 解析、商店技能列表获取、内容读取、导入等前端工具函数。
+
 ## [0.2.8] - 2026-05-21
 
 ### 新增

@@ -6,6 +6,7 @@ import { appDataDir, join } from '@tauri-apps/api/path';
 import { NewSkillModal } from './NewSkillModal';
 import { AIReviewModal } from './modals/AIReviewModal';
 import { fetchSkillsFromRepo } from '../utils/github';
+import { fetchStoreSkills } from '../utils/storeRepo';
 import type { StoreRepo } from '../types/store';
 
 interface SkillInfo {
@@ -159,7 +160,9 @@ export function Header() {
           return;
         }
 
-        const storeSkills = await fetchSkillsFromRepo(activeRepo.owner, activeRepo.repo, activeRepo.skillsPath);
+        const storeSkills = activeRepo.type === 'gerrit'
+          ? await fetchStoreSkills(activeRepo)
+          : await fetchSkillsFromRepo(activeRepo.owner, activeRepo.repo, activeRepo.skillsPath);
         if (requestId !== loadRequestRef.current) return;
 
         setSearchItems(

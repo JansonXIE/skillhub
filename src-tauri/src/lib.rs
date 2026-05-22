@@ -2,6 +2,7 @@ use std::process::Command;
 use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::collections::HashSet;
 use serde::{Serialize, Deserialize};
 
 
@@ -277,6 +278,211 @@ fn get_cache_dir() -> Result<std::path::PathBuf, String> {
         Ok(Path::new(&home).join(".github-skills-repo"))
     } else if let Ok(home) = std::env::var("HOME") {
         Ok(Path::new(&home).join(".github-skills-repo"))
+    } else {
+        Err("Could not find home directory".to_string())
+    }
+}
+
+#[tauri::command]
+async fn fetch_store_skills(
+    repo_url: String,
+    branch: String,
+    store_id: String,
+) -> Result<String, String> {
+    let cache_base = get_store_cache_dir()?;
+    let cache_dir = cache_base.join(&store_id);
+
+    // Partial clone: tree metadata only, no file blobs. Very small footprint (~KB).
+    if !cache_dir.join(".git").exists() {
+        run_git_cmd(&["clone", "--depth", "1", "--filter=blob:none", "--no-checkout", "-b", &branch, &repo_url, cache_dir.to_str().unwrap()], None)?;
+    } else {
+        // Refresh tree without pulling blobs
+        let _ = run_git_cmd(&["fetch", "--depth", "1", "origin", &branch], Some(&cache_dir));
+    }
+
+    #[derive(Serialize)]
+    struct StoreSkillResult {
+        name: String,
+        path: String,
+        skills_path: String,
+    }
+
+    let mut skills: Vec<StoreSkillResult> = Vec::new();
+    let exclude_names = HashSet::from([
+        ".github", ".git", ".vscode", "template", "spec", "node_modules", "dist", ".claude-plugin"
+    ]);
+
+    // Check if 'skills' subdir exists at root
+    let ls_root = run_git_cmd(&["ls-tree", &format!("origin/{}:", branch)], Some(&cache_dir)).unwrap_or_default();
+    let has_skills_dir = ls_root.lines().any(|line| {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        parts.len() >= 4 && parts[1] == "tree" && parts[3] == "skills"
+    });
+
+    let tree_path = if has_skills_dir {
+        format!("origin/{}:skills", branch)
+    } else {
+        format!("origin/{}:", branch)
+    };
+    let skills_path_str = if has_skills_dir { "skills".to_string() } else { "".to_string() };
+
+    let ls_output = run_git_cmd(&["ls-tree", &tree_path], Some(&cache_dir)).unwrap_or_default();
+
+    for line in ls_output.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 4 && parts[1] == "tree" {
+            let name = parts[3].to_string();
+            if !name.starts_with('.') && !exclude_names.contains(name.as_str()) {
+                let rel_path = if skills_path_str.is_empty() {
+                    name.clone()
+                } else {
+                    format!("{}/{}", skills_path_str, name)
+                };
+                skills.push(StoreSkillResult {
+                    name,
+                    path: rel_path,
+                    skills_path: skills_path_str.clone(),
+                });
+            }
+        }
+    }
+
+    serde_json::to_string(&skills).map_err(|e| format!("Failed to serialize: {}", e))
+}
+
+#[tauri::command]
+async fn fetch_store_skill_content(
+    repo_url: String,
+    branch: String,
+    store_id: String,
+    skill_path: String,
+) -> Result<String, String> {
+    let cache_base = get_store_cache_dir()?;
+    let cache_dir = cache_base.join(&store_id);
+
+    if !cache_dir.join(".git").exists() {
+        run_git_cmd(&["clone", "--depth", "1", "--filter=blob:none", "--no-checkout", "-b", &branch, &repo_url, cache_dir.to_str().unwrap()], None)?;
+    }
+
+    let ref_spec = format!("origin/{}:{}", branch, skill_path);
+
+    for filename in &["SKILL.md", "README.md"] {
+        let file_ref = format!("{}/{}", ref_spec, filename);
+        match run_git_cmd(&["show", &file_ref], Some(&cache_dir)) {
+            Ok(content) => return Ok(content),
+            Err(_) => continue,
+        }
+    }
+
+    Err("No SKILL.md or README.md found in skill directory".to_string())
+}
+
+#[tauri::command]
+async fn fetch_store_skill_file_tree(
+    repo_url: String,
+    branch: String,
+    store_id: String,
+    skill_path: String,
+) -> Result<String, String> {
+    let cache_base = get_store_cache_dir()?;
+    let cache_dir = cache_base.join(&store_id);
+
+    if !cache_dir.join(".git").exists() {
+        run_git_cmd(&["clone", "--depth", "1", "--filter=blob:none", "--no-checkout", "-b", &branch, &repo_url, cache_dir.to_str().unwrap()], None)?;
+    }
+
+    let tree_ref = format!("origin/{}:{}", branch, skill_path);
+    let ls_output = run_git_cmd(&["ls-tree", "-r", &tree_ref], Some(&cache_dir)).unwrap_or_default();
+
+    #[derive(Serialize)]
+    struct FileEntry {
+        path: String,
+        content: String,
+    }
+
+    let mut files: Vec<FileEntry> = Vec::new();
+    for line in ls_output.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 4 && parts[1] == "blob" {
+            let name = parts[3].to_string();
+            // Only fetch text files
+            if name.ends_with(".md") || name.ends_with(".txt") || name.ends_with(".json")
+                || name.ends_with(".yml") || name.ends_with(".yaml") || name.ends_with(".toml")
+                || name.ends_with(".cfg") || name.ends_with(".ini") || name.ends_with(".py")
+                || name.ends_with(".js") || name.ends_with(".ts") || name.ends_with(".sh")
+                || !name.contains('.')
+            {
+                let file_ref = format!("origin/{}:{}/{}", branch, skill_path, name);
+                let content = run_git_cmd(&["show", &file_ref], Some(&cache_dir)).unwrap_or_default();
+                files.push(FileEntry { path: name, content });
+            }
+        }
+    }
+
+    serde_json::to_string(&files).map_err(|e| format!("Failed to serialize: {}", e))
+}
+
+#[tauri::command]
+async fn import_skill_from_store(
+    data_path: String,
+    repo_url: String,
+    branch: String,
+    store_id: String,
+    skill_name: String,
+    skill_path: String,
+) -> Result<String, String> {
+    let cache_base = get_store_cache_dir()?;
+    let cache_dir = cache_base.join(&store_id);
+
+    if !cache_dir.join(".git").exists() {
+        run_git_cmd(&["clone", "--depth", "1", "--filter=blob:none", "--no-checkout", "-b", &branch, &repo_url, cache_dir.to_str().unwrap()], None)?;
+    }
+
+    let tree_ref = format!("origin/{}:{}", branch, skill_path);
+    let ls_output = run_git_cmd(&["ls-tree", "-r", &tree_ref], Some(&cache_dir)).unwrap_or_default();
+
+    let mut has_files = false;
+    let skills_dir = Path::new(&data_path).join("my_skills");
+    if !skills_dir.exists() {
+        fs::create_dir_all(&skills_dir)
+            .map_err(|e| format!("Failed to create skills directory: {}", e))?;
+    }
+
+    let dest_path = skills_dir.join(&skill_name);
+    if dest_path.exists() {
+        return Err(format!("Skill '{}' already exists in my_skills directory.", skill_name));
+    }
+    fs::create_dir_all(&dest_path)
+        .map_err(|e| format!("Failed to create skill directory: {}", e))?;
+
+    for line in ls_output.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 4 && parts[1] == "blob" {
+            let name = parts[3].to_string();
+            let file_ref = format!("origin/{}:{}/{}", branch, skill_path, name);
+            if let Ok(content) = run_git_cmd(&["show", &file_ref], Some(&cache_dir)) {
+                let file_dest = dest_path.join(&name);
+                if let Some(parent) = file_dest.parent() {
+                    let _ = fs::create_dir_all(parent);
+                }
+                let _ = fs::write(&file_dest, content);
+                has_files = true;
+            }
+        }
+    }
+
+    if !has_files {
+        return Err("Skill directory is empty or contains no readable files".to_string());
+    }
+
+    Ok(format!("Successfully imported skill {}", skill_name))
+}
+
+fn get_store_cache_dir() -> Result<std::path::PathBuf, String> {
+    if let Ok(home) = std::env::var("USERPROFILE") {
+        Ok(Path::new(&home).join(".skillhub-store-cache"))
+    } else if let Ok(home) = std::env::var("HOME") {
+        Ok(Path::new(&home).join(".skillhub-store-cache"))
     } else {
         Err("Could not find home directory".to_string())
     }
@@ -563,7 +769,9 @@ pub fn run() {
         clone_github_repo, get_local_skills, get_skill_detail,
         create_local_skill, import_local_skill, delete_local_skill,
         batch_install_skill, prepare_skill_commit, commit_and_push_skill,
-        install_gerrit_hook, prepare_gerrit_commit, commit_and_push_to_gerrit
+        install_gerrit_hook, prepare_gerrit_commit, commit_and_push_to_gerrit,
+        fetch_store_skills, fetch_store_skill_content,
+        fetch_store_skill_file_tree, import_skill_from_store
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {

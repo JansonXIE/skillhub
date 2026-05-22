@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Download, ExternalLink, Loader2, Package, LayoutGrid
+  ArrowLeft, Download, Loader2, Package, LayoutGrid
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { fetchSkillContent, extractDescription } from '../utils/github';
-import { importSkillFromStore } from '../utils/importStore';
+import { fetchStoreSkillContent, importSkillFromStoreRepo } from '../utils/storeRepo';
 import type { StoreRepo } from '../types/store';
 
 export function StoreSkillDetail() {
@@ -22,7 +22,6 @@ export function StoreSkillDetail() {
   const [importing, setImporting] = useState(false);
   const [imported, setImported] = useState(false);
 
-  // Determine the skill path from stored repo info
   const storeRepo = useMemo(() => {
     const stored = localStorage.getItem('skillhub-store-repos');
     if (!stored) return null;
@@ -56,9 +55,15 @@ export function StoreSkillDetail() {
     const fetchDetail = async () => {
       setLoading(true);
       try {
-        const raw = await fetchSkillContent(owner, repo, skillPath);
-        setContent(raw);
-        setDescription(extractDescription(raw));
+        if (storeRepo && storeRepo.type === 'gerrit') {
+          const raw = await fetchStoreSkillContent(storeRepo, skillPath);
+          setContent(raw);
+          setDescription(extractDescription(raw));
+        } else {
+          const raw = await fetchSkillContent(owner, repo, skillPath);
+          setContent(raw);
+          setDescription(extractDescription(raw));
+        }
       } catch (error) {
         console.error('Failed to fetch store skill detail:', error);
         setContent('');
@@ -69,14 +74,14 @@ export function StoreSkillDetail() {
     };
 
     fetchDetail();
-  }, [owner, repo, skillName, skillPath]);
+  }, [owner, repo, skillName, skillPath, storeRepo]);
 
   const handleImport = async () => {
-    if (!owner || !repo || !skillName || importing) return;
+    if (!owner || !repo || !skillName || importing || !storeRepo) return;
 
     setImporting(true);
     try {
-      await importSkillFromStore(owner, repo, skillName, skillPath);
+      await importSkillFromStoreRepo(storeRepo, skillName, skillPath);
       setImported(true);
       window.dispatchEvent(new CustomEvent('skills-updated'));
     } catch (error: any) {
@@ -85,8 +90,6 @@ export function StoreSkillDetail() {
       setImporting(false);
     }
   };
-
-  const githubUrl = `https://github.com/${owner}/${repo}/tree/main/${skillPath}`;
 
   return (
     <div className="page-container skill-detail-page flex flex-col h-full">
@@ -97,9 +100,9 @@ export function StoreSkillDetail() {
             <button className="skill-action-btn" onClick={() => navigate(-1)}>
               <ArrowLeft size={20} />
             </button>
-            <div className="skill-card-icon" style={{ 
-              marginBottom: 0, 
-              width: 40, 
+            <div className="skill-card-icon" style={{
+              marginBottom: 0,
+              width: 40,
               height: 40,
               background: 'linear-gradient(135deg, var(--color-primary), #6366f1)',
               color: 'white',
@@ -117,23 +120,15 @@ export function StoreSkillDetail() {
                   color: '#6366f1',
                   fontWeight: 500,
                 }}>
-                  {owner}/{repo}
+                  {storeRepo?.type === 'github'
+                    ? `${owner}/${repo}`
+                    : storeRepo?.name || owner}
                 </span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <a
-              href={githubUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-outline flex items-center gap-2"
-              style={{ outline: 'none', textDecoration: 'none', fontSize: '0.875rem' }}
-            >
-              <ExternalLink size={14} />
-              GitHub
-            </a>
             <button
               className={`btn ${imported ? 'btn-outline' : 'btn-primary'} flex items-center gap-2`}
               onClick={handleImport}

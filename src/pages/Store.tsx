@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Store as StoreIcon, Search, RefreshCw, Download, ExternalLink, Loader2, Package } from 'lucide-react';
+import { Store as StoreIcon, RefreshCw, Download, ExternalLink, Loader2, Package } from 'lucide-react';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { EmptyState } from '../components/EmptyState';
 import { fetchSkillsFromRepo, fetchSkillContent, extractDescription, invalidateRepoCache } from '../utils/github';
-import { importSkillFromStore } from '../utils/importStore';
+import { fetchStoreSkills, importSkillFromStoreRepo } from '../utils/storeRepo';
 import type { StoreRepo, StoreSkill } from '../types/store';
 
 export function Store() {
@@ -13,13 +14,11 @@ export function Store() {
   const [storeRepos, setStoreRepos] = useState<StoreRepo[]>([]);
   const [skills, setSkills] = useState<StoreSkill[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
   const [descriptions, setDescriptions] = useState<Record<string, string>>({});
   const [importingSkill, setImportingSkill] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
 
   const highlightSkill = (skillName: string) => {
-    setSearchQuery('');
     setTimeout(() => {
       const card = document.getElementById(`skill-card-${skillName}`);
       if (card) {
@@ -50,7 +49,12 @@ export function Store() {
   // Determine which repo to display
   const activeRepo = useMemo(() => {
     if (owner && repo) {
-      return storeRepos.find(r => r.owner === owner && r.repo === repo) || null;
+      return storeRepos.find(r => {
+        if (r.type === 'gerrit') {
+          return r.owner === owner && r.repo === repo;
+        }
+        return r.owner === owner && r.repo === repo;
+      }) || null;
     }
     return storeRepos.length > 0 ? storeRepos[0] : null;
   }, [owner, repo, storeRepos]);
@@ -63,10 +67,10 @@ export function Store() {
       return;
     }
 
-    const fetchSkills = async () => {
+    const loadSkills = async () => {
       setLoading(true);
       try {
-        const result = await fetchSkillsFromRepo(activeRepo.owner, activeRepo.repo, activeRepo.skillsPath);
+        const result = await fetchStoreSkills(activeRepo);
         setSkills(result);
       } catch (error) {
         console.error('Failed to fetch store skills:', error);
@@ -76,7 +80,7 @@ export function Store() {
       }
     };
 
-    fetchSkills();
+    loadSkills();
   }, [activeRepo]);
 
   useEffect(() => {
@@ -109,14 +113,20 @@ export function Store() {
 
     const fetchDescs = async () => {
       const newDescriptions: Record<string, string> = { ...descriptions };
-      // Fetch in parallel with a concurrency limit of 5
-      const batch = skills.slice(0, 30); // limit to first 30 to avoid rate limits
+      const batch = skills.slice(0, 30);
       const promises = batch.map(async (skill) => {
         const key = `${skill.owner}/${skill.repo}/${skill.path}`;
         if (newDescriptions[key]) return;
         try {
-          const content = await fetchSkillContent(skill.owner, skill.repo, skill.path);
-          newDescriptions[key] = extractDescription(content);
+          if (activeRepo.type === 'github') {
+            const content = await fetchSkillContent(skill.owner, skill.repo, skill.path);
+            newDescriptions[key] = extractDescription(content);
+          } else {
+            // Gerrit: try fetching via backend
+            const { fetchStoreSkillContent } = await import('../utils/storeRepo');
+            const content = await fetchStoreSkillContent(activeRepo, skill.path);
+            newDescriptions[key] = extractDescription(content);
+          }
         } catch {
           newDescriptions[key] = '暂无描述';
         }
@@ -129,17 +139,13 @@ export function Store() {
     fetchDescs();
   }, [skills, activeRepo]);
 
-  const filteredSkills = useMemo(() => {
-    if (!searchQuery.trim()) return skills;
-    const q = searchQuery.toLowerCase();
-    return skills.filter(s => s.name.toLowerCase().includes(q));
-  }, [skills, searchQuery]);
-
   const handleRefresh = () => {
     if (!activeRepo) return;
-    invalidateRepoCache(activeRepo.owner, activeRepo.repo);
+    if (activeRepo.type === 'github') {
+      invalidateRepoCache(activeRepo.owner, activeRepo.repo);
+    }
     setLoading(true);
-    fetchSkillsFromRepo(activeRepo.owner, activeRepo.repo, activeRepo.skillsPath)
+    fetchStoreSkills(activeRepo)
       .then(result => setSkills(result))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -147,12 +153,12 @@ export function Store() {
 
   const handleImport = async (e: React.MouseEvent, skill: StoreSkill) => {
     e.stopPropagation();
-    if (importingSkill) return;
+    if (importingSkill || !activeRepo) return;
 
     setImportingSkill(skill.name);
     setImportSuccess(null);
     try {
-      await importSkillFromStore(skill.owner, skill.repo, skill.name, skill.path);
+      await importSkillFromStoreRepo(activeRepo, skill.name, skill.path);
       setImportSuccess(skill.name);
       window.dispatchEvent(new CustomEvent('skills-updated'));
       setTimeout(() => setImportSuccess(null), 3000);
@@ -176,9 +182,9 @@ export function Store() {
             <p className="page-subtitle">探索和发现各种来源的 skills 目录。</p>
           </div>
         </div>
-        <EmptyState 
-          title="暂无商店" 
-          description="请在左侧边栏点击「+ 添加商店」添加 GitHub 仓库。" 
+        <EmptyState
+          title="暂无商店"
+          description="请在左侧边栏点击「+ 添加商店」添加 GitHub 或 Gerrit 仓库。"
         />
       </div>
     );
@@ -194,29 +200,59 @@ export function Store() {
               {activeRepo ? activeRepo.name : 'Skill 商店'}
             </h1>
             {activeRepo && (
-              <span className="badge" style={{ 
-                backgroundColor: '#f1f5f9', 
-                color: '#64748b', 
-                fontSize: '0.875rem', 
-                padding: '0.125rem 0.5rem' 
+              <span className="badge" style={{
+                backgroundColor: '#f1f5f9',
+                color: '#64748b',
+                fontSize: '0.875rem',
+                padding: '0.125rem 0.5rem'
               }}>
-                {filteredSkills.length}
+                {skills.length}
               </span>
             )}
           </div>
           <p className="page-subtitle">
-            {activeRepo 
+            {activeRepo
               ? <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                  <span style={{ color: 'var(--text-tertiary)' }}>{activeRepo.owner}/{activeRepo.repo}</span>
-                  <a 
-                    href={activeRepo.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    style={{ color: 'var(--color-primary)', display: 'inline-flex' }}
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <ExternalLink size={13} />
-                  </a>
+                  <span style={{ color: 'var(--text-tertiary)' }}>
+                    {activeRepo.type === 'github'
+                      ? `${activeRepo.owner}/${activeRepo.repo}`
+                      : activeRepo.owner}
+                  </span>
+                  {activeRepo.type === 'github' && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          await openUrl(activeRepo.url);
+                        } catch {
+                          window.open(activeRepo.url, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                      style={{
+                        color: 'var(--color-primary)',
+                        display: 'inline-flex',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        outline: 'none',
+                      }}
+                    >
+                      <ExternalLink size={13} />
+                    </button>
+                  )}
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: '600',
+                    padding: '2px 7px',
+                    borderRadius: '6px',
+                    backgroundColor: activeRepo.type === 'gerrit' ? '#fff7ed' : '#eff6ff',
+                    color: activeRepo.type === 'gerrit' ? '#f97316' : '#3b82f6',
+                    border: `1px solid ${activeRepo.type === 'gerrit' ? '#fed7aa' : '#bfdbfe'}`,
+                    letterSpacing: '0.02em',
+                  }}>
+                    {activeRepo.type === 'gerrit' ? 'Gerrit' : 'GitHub'}
+                  </span>
                 </span>
               : '探索和发现各种来源的 skills 目录。'
             }
@@ -225,25 +261,14 @@ export function Store() {
 
         <div className="action-bar">
           {activeRepo && (
-            <>
-              <div className="search-bar" style={{ width: '240px' }}>
-                <Search size={16} style={{ color: 'var(--text-tertiary)' }} />
-                <input
-                  className="search-input"
-                  placeholder="搜索 Skill..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <button 
-                className="btn-icon btn-outline" 
-                style={{ padding: '0.5rem 0.75rem', outline: 'none' }} 
-                onClick={handleRefresh}
-                title="刷新"
-              >
-                <RefreshCw size={16} />
-              </button>
-            </>
+            <button
+              className="btn-icon btn-outline"
+              style={{ padding: '0.5rem 0.75rem', outline: 'none' }}
+              onClick={handleRefresh}
+              title="刷新"
+            >
+              <RefreshCw size={16} />
+            </button>
           )}
         </div>
       </div>
@@ -261,14 +286,14 @@ export function Store() {
           <Loader2 size={32} className="spin-animation" style={{ color: 'var(--color-primary)' }} />
           <span>正在加载 Skills...</span>
         </div>
-      ) : filteredSkills.length === 0 ? (
-        <EmptyState 
-          title={searchQuery ? '没有匹配的 Skill' : '暂无 Skills'} 
-          description={searchQuery ? '尝试更改搜索关键词' : '该仓库中没有找到 skill 目录'} 
+      ) : skills.length === 0 ? (
+        <EmptyState
+          title={'暂无 Skills'}
+          description={'该仓库中没有找到 skill 目录'}
         />
       ) : (
         <div className="skills-grid">
-          {filteredSkills.map((skill) => {
+          {skills.map((skill) => {
             const descKey = `${skill.owner}/${skill.repo}/${skill.path}`;
             const isImporting = importingSkill === skill.name;
             const justImported = importSuccess === skill.name;
@@ -295,7 +320,7 @@ export function Store() {
                       title={justImported ? '已导入' : '导入到我的 Skills'}
                       onClick={(e) => handleImport(e, skill)}
                       disabled={isImporting}
-                      style={{ 
+                      style={{
                         outline: 'none',
                         color: justImported ? '#10b981' : undefined,
                       }}
@@ -308,19 +333,6 @@ export function Store() {
                         <Download size={14} />
                       )}
                     </button>
-                    {skill.htmlUrl && (
-                      <a
-                        className="skill-action-btn"
-                        href={skill.htmlUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="在 GitHub 中查看"
-                        onClick={e => e.stopPropagation()}
-                        style={{ outline: 'none' }}
-                      >
-                        <ExternalLink size={14} />
-                      </a>
-                    )}
                   </div>
                 </div>
 
@@ -344,7 +356,9 @@ export function Store() {
                     color: '#6366f1',
                     fontWeight: 500,
                   }}>
-                    {skill.owner}/{skill.repo}
+                    {activeRepo?.type === 'github'
+                      ? `${skill.owner}/${skill.repo}`
+                      : activeRepo?.name || skill.owner}
                   </span>
                 </div>
               </div>

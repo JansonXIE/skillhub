@@ -1,9 +1,14 @@
 export interface StoreRepo {
   id: string;
+  type: 'github' | 'gerrit';
   owner: string;
   repo: string;
   name: string;
   url: string;
+  /** SSH username for Gerrit repos */
+  sshUser?: string;
+  /** Git branch name */
+  branch?: string;
   /** Path inside the repo where skills live ('skills' or '') */
   skillsPath: string;
   skillCount: number;
