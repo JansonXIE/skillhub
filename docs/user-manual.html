@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkillHub 使用说明</title>
+  <style>
+    :root {
+      --sidebar-width: 260px;
+      --color-primary: #3b82f6;
+      --color-primary-light: #eff6ff;
+      --color-text: #1e293b;
+      --color-text-secondary: #64748b;
+      --color-bg: #f8fafc;
+      --color-sidebar-bg: #ffffff;
+      --color-border: #e2e8f0;
+      --color-code-bg: #f1f5f9;
+      --radius: 8px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--color-text);
+      background: var(--color-bg);
+      line-height: 1.7;
+      display: flex;
+    }
+
+    /* ============ Sidebar ============ */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: var(--sidebar-width);
+      height: 100vh;
+      background: var(--color-sidebar-bg);
+      border-right: 1px solid var(--color-border);
+      overflow-y: auto;
+      padding: 24px 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-logo {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid var(--color-border);
+      margin-bottom: 8px;
+    }
+
+    .sidebar-logo h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--color-primary);
+      letter-spacing: -0.5px;
+    }
+
+    .sidebar-logo span {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      display: block;
+      margin-top: 2px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 8px 12px;
+      overflow-y: auto;
+    }
+
+    .sidebar-nav a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      text-decoration: none;
+      transition: all 0.15s ease;
+      margin-bottom: 2px;
+    }
+
+    .sidebar-nav a:hover {
+      background: var(--color-primary-light);
+      color: var(--color-primary);
+    }
+
+    .sidebar-nav a.active {
+      background: var(--color-primary);
+      color: #ffffff;
+      font-weight: 500;
+    }
+
+    .sidebar-nav .nav-section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      padding: 16px 12px 6px;
+    }
+
+    .sidebar-nav .nav-sub {
+      padding-left: 24px;
+    }
+
+    .sidebar-nav .nav-sub a {
+      font-size: 13px;
+      padding: 6px 12px;
+    }
+
+    .sidebar-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--color-border);
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    /* ============ Main Content ============ */
+    .main-content {
+      margin-left: var(--sidebar-width);
+      flex: 1;
+      max-width: 900px;
+      padding: 40px 48px;
+    }
+
+    .main-content h2 {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--color-text);
+      margin-bottom: 8px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--color-border);
+    }
+
+    .main-content h3 {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--color-text);
+      margin-top: 36px;
+      margin-bottom: 12px;
+    }
+
+    .main-content h4 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--color-text);
+      margin-top: 24px;
+      margin-bottom: 8px;
+    }
+
+    .main-content p {
+      margin-bottom: 16px;
+      color: var(--color-text);
+    }
+
+    .main-content ul, .main-content ol {
+      margin-bottom: 16px;
+      padding-left: 24px;
+    }
+
+    .main-content li {
+      margin-bottom: 6px;
+      color: var(--color-text);
+    }
+
+    .main-content strong {
+      color: var(--color-primary);
+    }
+
+    /* Info Box */
+    .info-box {
+      background: #ffffff;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .info-box.tip {
+      border-left: 4px solid var(--color-primary);
+      background: var(--color-primary-light);
+    }
+
+    .info-box.warning {
+      border-left: 4px solid #f59e0b;
+      background: #fffbeb;
+    }
+
+    .info-box.danger {
+      border-left: 4px solid #ef4444;
+      background: #fef2f2;
+    }
+
+    .info-box-title {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    /* Code */
+    code {
+      background: var(--color-code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      font-size: 13px;
+      color: #e11d48;
+    }
+
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: var(--radius);
+      overflow-x: auto;
+      margin-bottom: 20px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+
+    /* Steps */
+    .step-list {
+      counter-reset: step;
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .step-list li {
+      counter-increment: step;
+      position: relative;
+      padding-left: 48px;
+      margin-bottom: 24px;
+    }
+
+    .step-list li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 32px;
+      height: 32px;
+      background: var(--color-primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    th {
+      background: var(--color-code-bg);
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    td {
+      color: var(--color-text);
+    }
+
+    /* Image placeholder */
+    .figure {
+      background: #ffffff;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 12px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .figure-label {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      margin-top: 8px;
+    }
+
+    /* Feature Card Grid */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .feature-card {
+      background: #ffffff;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .feature-card .icon {
+      width: 40px;
+      height: 40px;
+      background: var(--color-primary-light);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+
+    .feature-card h4 {
+      font-size: 15px;
+      margin: 0 0 6px;
+    }
+
+    .feature-card p {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      margin: 0;
+    }
+
+    /* Back to top */
+    .back-to-top {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 40px;
+      height: 40px;
+      background: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+      transition: all 0.15s ease;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .back-to-top.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .back-to-top:hover {
+      background: #2563eb;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+
+    /* Mock UI elements for visual explanation */
+    .mock-sidebar {
+      background: #f8fafc;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 16px;
+      width: 200px;
+      font-size: 13px;
+    }
+
+    .mock-sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      color: var(--color-text-secondary);
+    }
+
+    .mock-sidebar-item.active {
+      background: var(--color-primary);
+      color: white;
+    }
+
+    .mock-badge {
+      margin-left: auto;
+      background: #e2e8f0;
+      color: #64748b;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+      .main-content {
+        margin-left: 0;
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============ Sidebar ============ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h1>SkillHub</h1>
+    <span>使用说明 v1.0.0</span>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="#overview">概述</a>
+    <a href="#quickstart">快速开始</a>
+    <a href="#layout">界面布局</a>
+
+    <div class="nav-section-title">核心功能</div>
+    <a href="#my-skills">我的 Skills</a>
+    <div class="nav-sub">
+      <a href="#create-skill">创建技能</a>
+      <a href="#skill-detail">技能详情</a>
+      <a href="#batch-manage">批量管理</a>
+    </div>
+    <a href="#favorites">收藏</a>
+    <a href="#distributed">已分发</a>
+    <a href="#pending">待分发</a>
+    <div class="nav-sub">
+      <a href="#upload-skill">上传技能到远程</a>
+    </div>
+
+    <div class="nav-section-title">技能商店</div>
+    <a href="#store">Skill 商店</a>
+    <div class="nav-sub">
+      <a href="#add-store">添加商店仓库</a>
+      <a href="#browse-store">浏览与导入</a>
+    </div>
+
+    <div class="nav-section-title">其他</div>
+    <a href="#search">全局搜索</a>
+    <a href="#resources">推荐资源</a>
+    <a href="#settings">设置</a>
+    <div class="nav-sub">
+      <a href="#settings-data">数据设置</a>
+      <a href="#settings-ai">AI 模型</a>
+      <a href="#settings-skill">Skill 平台</a>
+      <a href="#settings-repo">代码仓库</a>
+      <a href="#settings-about">关于</a>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    &copy; 2026 SkillHub · @JansonXIE
+  </div>
+</aside>
+
+<!-- ============ Main Content ============ -->
+<main class="main-content">
+
+  <!-- Overview -->
+  <section id="overview">
+    <h2>概述</h2>
+    <p>
+      <strong>SkillHub</strong> 是一款基于 Tauri 2.0 + React 19 构建的桌面应用程序，
+      专为 AI Skill（技能）的全生命周期管理而设计——从<span style="color: var(--color-text);">发现、创建、收藏、分发到同步</span>，
+      帮助你一站式管理所有 AI Agent 技能文件（<code>SKILL.md</code>）。
+    </p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">📦</div>
+        <h4>技能管理</h4>
+        <p>统一管理本地所有技能，支持查看、创建、删除等操作。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">⭐</div>
+        <h4>收藏系统</h4>
+        <p>将常用技能加入收藏夹，快速访问。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🚀</div>
+        <h4>一键分发</h4>
+        <p>将技能推送到 GitHub / Gerrit 远程仓库，支持 AI 自动生成 Commit 信息。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🏪</div>
+        <h4>Skill 商店</h4>
+        <p>从 GitHub / Gerrit 仓库浏览和导入社区技能。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔍</div>
+        <h4>全局搜索</h4>
+        <p>跨页面实时搜索，支持下拉联想和高亮定位。</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔗</div>
+        <h4>多平台集成</h4>
+        <p>一键同步技能到 Copilot、Cursor、Gemini CLI、Trae 等 7 个主流 AI 平台。</p>
+      </div>
+    </div>
+
+    <div class="info-box tip">
+      <div class="info-box-title">技术栈</div>
+      <p style="margin: 0;">SkillHub 使用 <strong>React 19</strong> + <strong>Vite</strong> 构建前端，<strong>Tauri 2.0</strong> 作为桌面桥接层，<strong>Rust</strong> 实现后端命令，支持 Windows 和 Linux。</p>
+    </div>
+  </section>
+
+  <!-- Quick Start -->
+  <section id="quickstart">
+    <h2>快速开始</h2>
+
+    <h3>安装与启动</h3>
+    <ol class="step-list">
+      <li>
+        <strong>下载安装包</strong><br>
+        从 GitHub Releases 页面下载对应平台的安装包（<code>.msi</code> 用于 Windows，<code>.deb</code> 用于 Linux）。
+      </li>
+      <li>
+        <strong>启动应用</strong><br>
+        安装完成后，从桌面快捷方式或开始菜单启动 <strong>SkillHub</strong>。
+      </li>
+      <li>
+        <strong>配置数据目录</strong><br>
+        首次启动后，进入 <strong>设置 → 数据设置</strong>，确认或修改数据目录路径。该目录用于存放所有本地技能文件。
+      </li>
+      <li>
+        <strong>创建或导入你的第一个技能</strong><br>
+        点击右上角 <strong>「+ 新建」</strong>按钮，选择一种方式添加技能。
+      </li>
+    </ol>
+
+    <div class="info-box tip">
+      <div class="info-box-title">自动更新</div>
+      <p style="margin: 0;">SkillHub 支持 OTA 自动更新。启动时会自动检查新版本，你可以在 <strong>设置 → 关于</strong> 中管理自动检查更新开关。</p>
+    </div>
+  </section>
+
+  <!-- Layout -->
+  <section id="layout">
+    <h2>界面布局</h2>
+    <p>SkillHub 的主界面采用经典的<strong>侧边栏 + 内容区</strong>布局：</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>区域</th>
+          <th>位置</th>
+          <th>说明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>侧边栏</strong></td>
+          <td>左侧</td>
+          <td>导航菜单，包含「我的 Skills」「收藏」「已分发」「待分发」「Skill 商店」「推荐资源」「设置」，每个菜单项旁显示实时数量徽章</td>
+        </tr>
+        <tr>
+          <td><strong>顶部栏 (Header)</strong></td>
+          <td>右上区域</td>
+          <td>居中放置全局搜索框，右侧显示「+ 新建」按钮用于创建技能</td>
+        </tr>
+        <tr>
+          <td><strong>主内容区</strong></td>
+          <td>右下区域</td>
+          <td>展示当前页面的核心内容，如技能卡片网格、设置表单等</td>
+        </tr>
+        <tr>
+          <td><strong>更新通知</strong></td>
+          <td>顶部横幅</td>
+          <td>有新版本时在顶部显示更新提示条</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- My Skills -->
+  <section id="my-skills">
+    <h2>我的 Skills</h2>
+    <p>
+      这是 SkillHub 的<strong>默认首页</strong>，展示数据目录中所有已导入的本地技能。每个技能以卡片形式呈现，
+      包含技能名称、描述文字和操作按钮。
+    </p>
+
+    <h4>技能卡片操作</h4>
+    <p>每张技能卡片右上角有三个操作按钮（鼠标悬停时显示）：</p>
+    <ul>
+      <li><strong>📥 安装到平台</strong> — 将技能复制到已配置的 AI 平台目录</li>
+      <li><strong>⭐ 收藏/取消收藏</strong> — 将技能加入或移出收藏夹（已收藏的卡片星星图标为实心蓝色）</li>
+      <li><strong>🗑️ 删除</strong> — 从本地永久删除该技能（立即生效，无二次确认）</li>
+    </ul>
+    <p>点击卡片主体区域会<strong>跳转到技能详情页</strong>，查看完整的 <code>SKILL.md</code> 内容。</p>
+
+    <div class="info-box warning">
+      <div class="info-box-title">注意</div>
+      <p style="margin: 0;">删除操作为<strong>立即物理删除</strong>，技能文件夹将从磁盘彻底移除，无法撤销。请谨慎操作。</p>
+    </div>
+  </section>
+
+  <!-- Create Skill -->
+  <section id="create-skill">
+    <h3>创建新技能</h3>
+    <p>点击右上角 <strong>「+ 新建」</strong>按钮，弹出新建技能对话框，提供<strong>四种</strong>添加方式：</p>
+
+    <h4>1. AI 草稿（推荐）</h4>
+    <ol>
+      <li>在弹窗中选择 <strong>「AI 草稿」</strong></li>
+      <li>输入<strong>技能名称</strong>（仅限小写字母、数字和连字符，如 <code>my-awesome-skill</code>）</li>
+      <li>输入<strong>技能描述</strong>，说明该技能的用途和触发场景</li>
+      <li>点击 <strong>「生成并预览」</strong>，AI 将根据你的描述自动生成标准的 <code>SKILL.md</code> 草稿</li>
+      <li>生成后自动进入<strong>预览编辑模式</strong>，你可以修改草稿内容</li>
+      <li>确认无误后点击 <strong>「创建技能」</strong> 保存到本地</li>
+    </ol>
+
+    <div class="info-box tip">
+      <div class="info-box-title">前提条件</div>
+      <p style="margin: 0;">使用 AI 草稿功能需要先在 <strong>设置 → AI 模型</strong> 中配置至少一个 AI 端点并完成验证。</p>
+    </div>
+
+    <h4>2. 从 GitHub 安装</h4>
+    <ol>
+      <li>选择 <strong>「从 GitHub 安装」</strong></li>
+      <li>输入 GitHub 仓库 URL（如 <code>https://github.com/owner/skill-repo</code>）</li>
+      <li>点击 <strong>「扫描仓库」</strong>，SkillHub 会自动检测仓库结构并列出可导入的技能</li>
+      <li>从结果列表选择需要导入的技能</li>
+    </ol>
+
+    <h4>3. 手动创建</h4>
+    <ol>
+      <li>选择 <strong>「手动创建」</strong></li>
+      <li>输入<strong>技能名称</strong></li>
+      <li>在文本框中<strong>直接编写</strong> <code>SKILL.md</code> 的完整内容</li>
+      <li>点击 <strong>「创建技能」</strong> 保存</li>
+    </ol>
+
+    <h4>4. 扫描本地</h4>
+    <ol>
+      <li>选择 <strong>「扫描本地」</strong></li>
+      <li>系统会打开<strong>原生文件夹选择器</strong></li>
+      <li>选择一个包含 <code>SKILL.md</code> 或 <code>README.md</code> 的本地目录</li>
+      <li>SkillHub 会自动校验并将整个文件夹复制到数据目录</li>
+    </ol>
+
+    <div class="info-box">
+      <div class="info-box-title">SKILL.md 格式规范</div>
+      <p style="margin-bottom: 8px;">标准的 <code>SKILL.md</code> 包含两大部分：</p>
+      <ul style="margin-bottom: 0;">
+        <li><strong>YAML Front Matter</strong>（以 <code>---</code> 包裹的元数据区）— 包含 <code>name</code> 和 <code>description</code> 字段</li>
+        <li><strong>Markdown 主体</strong> — 定义领域知识、执行逻辑和规则约束</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Skill Detail -->
+  <section id="skill-detail">
+    <h3>技能详情页</h3>
+    <p>点击技能卡片进入详情页，页面采用<strong>左右两栏布局</strong>：</p>
+
+    <h4>左侧：预览区</h4>
+    <ul>
+      <li><strong>技能描述</strong> — 从 Front Matter 中提取的描述信息</li>
+      <li><strong>技能内容</strong> — 使用 Markdown 渲染的完整 <code>SKILL.md</code> 内容</li>
+      <li><strong>AI 翻译</strong> — 点击可将技能内容翻译为其他语言（需配置 AI 模型）</li>
+      <li><strong>复制 MD</strong> — 一键复制完整的技能 Markdown 内容到剪贴板</li>
+    </ul>
+
+    <h4>右侧：平台集成</h4>
+    <ul>
+      <li>展示所有已在设置中<strong>启用</strong>的 AI 平台列表</li>
+      <li>每个平台显示图标、名称和当前配置的目标路径</li>
+      <li>勾选目标平台后点击 <strong>「批量安装」</strong>，将技能文件复制到所有选中平台的技能目录中</li>
+      <li>支持<strong>全选/取消全选</strong></li>
+    </ul>
+
+    <p>支持集成的平台包括：</p>
+    <table>
+      <thead>
+        <tr><th>平台</th><th>默认路径</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>GitHub Copilot</td><td><code>%USERPROFILE%\.copilot\skills</code></td></tr>
+        <tr><td>Cursor</td><td><code>%USERPROFILE%\.cursor\skills</code></td></tr>
+        <tr><td>Gemini CLI</td><td><code>%USERPROFILE%\.gemini\skills</code></td></tr>
+        <tr><td>Antigravity</td><td><code>%USERPROFILE%\.gemini\antigravity\skills</code></td></tr>
+        <tr><td>Windsurf</td><td><code>%USERPROFILE%\.codeium\windsurf\skills</code></td></tr>
+        <tr><td>Trae</td><td><code>%USERPROFILE%\.trae\skills</code></td></tr>
+        <tr><td>Qoder</td><td><code>%USERPROFILE%\.qoder\skills</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="info-box">
+      <div class="info-box-title">路径配置</div>
+      <p style="margin: 0;">各平台的目标路径可在 <strong>设置 → Skill</strong> 中单独自定义修改。路径支持环境变量（如 <code>%USERPROFILE%</code>）。</p>
+    </div>
+  </section>
+
+  <!-- Batch Manage -->
+  <section id="batch-manage">
+    <h3>批量管理</h3>
+    <p>在「我的 Skills」页面，点击 <strong>「批量管理」</strong>按钮进入批量模式：</p>
+
+    <ul>
+      <li><strong>选择技能</strong> — 点击卡片切换选中状态，也可使用「全选/清空」按钮</li>
+      <li><strong>批量收藏</strong> — 将选中的技能批量添加或取消收藏</li>
+      <li><strong>批量同步到平台</strong> — 打开平台选择弹窗，勾选目标平台后一键同步所有选中技能</li>
+      <li><strong>批量删除</strong> — 永久删除所有选中的技能（操作前会弹出确认对话框）</li>
+    </ul>
+
+    <p>在批量模式下，卡片左上角会显示复选框，选中状态的卡片带有<strong>蓝色高亮边框和微弱投影</strong>。点击「取消」按钮或再次点击「批量管理」可退出批量模式。</p>
+  </section>
+
+  <!-- Favorites -->
+  <section id="favorites">
+    <h2>收藏</h2>
+    <p>
+      收藏页展示所有已加入收藏夹的技能。收藏状态基于 <code>localStorage</code> 中的收藏列表，
+      与「我的 Skills」和「技能详情」页中的收藏状态<strong>实时同步</strong>。
+    </p>
+    <p>在收藏页的卡片中：</p>
+    <ul>
+      <li>点击<strong>星星按钮</strong>可取消收藏</li>
+      <li>点击<strong>垃圾桶按钮</strong>可删除技能（同时移除收藏）</li>
+      <li>点击卡片主体可跳转到技能详情页</li>
+    </ul>
+    <p>侧边栏的收藏数量徽章会根据收藏列表和本地技能列表的<strong>交集</strong>自动计算，确保不会出现幽灵计数。</p>
+  </section>
+
+  <!-- Distributed -->
+  <section id="distributed">
+    <h2>已分发</h2>
+    <p>
+      已分发页面展示所有已经推送到远程仓库的技能。数据来源于 <code>localStorage</code> 中的分发记录（<code>skillhub-distributed</code>）。
+    </p>
+    <p>每张卡片底部显示：</p>
+    <ul>
+      <li><strong>已分发至:</strong> 标签</li>
+      <li>目标仓库的完整 URL（超长 URL 自动省略截断）</li>
+    </ul>
+    <p>点击卡片右上角的<strong>垃圾桶按钮</strong>可删除分发记录（仅删除本地记录，不影响远程仓库中的内容）。已分发页面的卡片<strong>不可点击跳转</strong>，属于只读归档视图。</p>
+  </section>
+
+  <!-- Pending -->
+  <section id="pending">
+    <h2>待分发</h2>
+    <p>
+      待分发页面展示本地存在但尚未推送到远程仓库的技能。计算逻辑为：<strong>本地全部技能 - 已分发记录中的技能 = 待分发技能</strong>。
+    </p>
+    <p>将鼠标悬停在待分发技能卡片上，会出现 <strong>「上传」</strong>按钮，点击后进入上传流程。</p>
+  </section>
+
+  <!-- Upload Skill -->
+  <section id="upload-skill">
+    <h3>上传技能到远程仓库</h3>
+    <ol class="step-list">
+      <li>
+        <strong>打开上传弹窗</strong><br>
+        在「待分发」页面，将鼠标悬停到目标技能卡片上，点击浮现的「上传」按钮。
+      </li>
+      <li>
+        <strong>选择目标仓库</strong><br>
+        从下拉列表中选择已在<strong>设置 → 代码仓库</strong>中配置的远程仓库。
+      </li>
+      <li>
+        <strong>提交与推送</strong><br>
+        点击确认后，SkillHub 会：
+        <ul>
+          <li>在后台创建 Git 沙箱缓存目录</li>
+          <li>使用 <code>git clone --sparse</code> 极速拉取远程仓库</li>
+          <li>将技能文件覆盖写入对应目录</li>
+          <li>自动调用 AI 生成专业的 <strong>中文 Commit 信息</strong></li>
+          <li>执行 <code>git push</code> 推送到远程仓库</li>
+        </ul>
+      </li>
+      <li>
+        <strong>自动同步状态</strong><br>
+        推送成功后，该技能会自动从「待分发」移入「已分发」，侧边栏数量徽章实时刷新。
+      </li>
+    </ol>
+
+    <div class="info-box warning">
+      <div class="info-box-title">Git 认证</div>
+      <p style="margin: 0;">上传功能依赖本地 Git 环境的认证配置（SSH Key 或凭据管理器）。确保你已在本机配置好对应远程仓库的访问权限。Gerrit 仓库需要使用 SSH 协议。</p>
+    </div>
+  </section>
+
+  <!-- Skill Store -->
+  <section id="store">
+    <h2>Skill 商店</h2>
+    <p>
+      Skill 商店让你从<strong> GitHub / Gerrit 公共仓库</strong>中浏览和发现社区技能，支持一键导入到本地。
+      商店仓库管理在侧边栏中完成。
+    </p>
+  </section>
+
+  <!-- Add Store -->
+  <section id="add-store">
+    <h3>添加商店仓库</h3>
+    <ol class="step-list">
+      <li>
+        <strong>打开添加商店弹窗</strong><br>
+        在侧边栏的「Skill 商店」分组中，点击底部的 <strong>「+ 添加商店」</strong>按钮。
+      </li>
+      <li>
+        <strong>选择仓库类型</strong><br>
+        在弹窗顶部<strong>切换 GitHub / Gerrit</strong> 类型标签。
+      </li>
+      <li>
+        <strong>填写仓库信息</strong>
+        <ul>
+          <li><strong>GitHub 模式</strong>：输入仓库 URL，如 <code>https://github.com/anthropics/skills</code></li>
+          <li><strong>Gerrit 模式</strong>：输入 SSH 格式的 URL，如 <code>ssh://user@host:port/project</code></li>
+          <li><strong>仓库名称（可选）</strong>：自定义显示名称，留空则自动使用仓库名</li>
+        </ul>
+      </li>
+      <li>
+        <strong>确认添加</strong><br>
+        点击确认后，SkillHub 会使用 <strong>Git 部分克隆</strong>技术快速扫描仓库结构，
+        自动识别技能目录并将仓库添加到侧边栏。
+      </li>
+    </ol>
+
+    <div class="info-box tip">
+      <div class="info-box-title">智能结构检测</div>
+      <p style="margin: 0;">SkillHub 会自动检测两种常见的 skill 仓库结构：含 <code>skills/</code> 子目录的仓库（如 <code>anthropics/skills</code>）和根目录即 skill 文件夹的仓库，无需手动配置。</p>
+    </div>
+
+    <div class="info-box">
+      <div class="info-box-title">部分克隆策略</div>
+      <p style="margin: 0;">商店使用 <code>git clone --depth 1 --filter=blob:none --no-checkout</code> 仅拉取 tree 和 commit 元数据（约几十 KB），文件内容按需获取。每次打开商店时通过 <code>git fetch --depth 1</code> 增量更新。</p>
+    </div>
+  </section>
+
+  <!-- Browse Store -->
+  <section id="browse-store">
+    <h3>浏览与导入技能</h3>
+    <p>点击侧边栏中的商店仓库名称，进入该仓库的技能列表页面：</p>
+
+    <ul>
+      <li><strong>技能卡片</strong> — 每个卡片显示技能名称、描述和来源标签</li>
+      <li><strong>导入按钮</strong> — 点击卡片右上角的下载图标，将技能导入到本地「我的 Skills」</li>
+      <li><strong>查看详情</strong> — 点击卡片主体进入商店技能详情页，查看 <code>SKILL.md</code> 完整内容</li>
+      <li><strong>刷新</strong> — 点击刷新按钮重新拉取仓库最新数据</li>
+    </ul>
+
+    <p>导入成功后，技能会出现在<strong>「我的 Skills」</strong>列表中，侧边栏数量自动更新。</p>
+  </section>
+
+  <!-- Search -->
+  <section id="search">
+    <h2>全局搜索</h2>
+    <p>
+      顶部栏居中的搜索框是 SkillHub 的<strong>全局搜索入口</strong>，支持<strong>根据当前页面动态切换搜索源</strong>，实现「所见即所搜」。
+    </p>
+
+    <table>
+      <thead>
+        <tr><th>当前页面</th><th>搜索内容源</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>我的 Skills</td><td>所有本地技能</td></tr>
+        <tr><td>收藏</td><td>已收藏的本地技能</td></tr>
+        <tr><td>已分发</td><td>已分发的技能</td></tr>
+        <tr><td>待分发</td><td>待分发的技能</td></tr>
+        <tr><td>Skill 商店</td><td>当前选中仓库的技能</td></tr>
+      </tbody>
+    </table>
+
+    <h4>搜索交互</h4>
+    <ul>
+      <li><strong>聚焦输入框</strong> — 自动加载当前页面范围的技能列表</li>
+      <li><strong>输入关键词</strong> — 实时模糊匹配技能名称和描述，下拉显示联想结果</li>
+      <li><strong>点击结果</strong> — 在当前页面高亮定位目标技能卡片（带有脉冲发光动画，持续 4.5 秒）</li>
+      <li><strong>跨页面搜索</strong> — 如果在非列表页搜索，点击结果会自动跳转到对应列表页并触发高亮</li>
+      <li><strong>点击外部区域</strong> — 关闭下拉菜单</li>
+      <li><strong>切换页面</strong> — 搜索框状态自动复位，下拉列表自动关闭</li>
+    </ul>
+  </section>
+
+  <!-- Resources -->
+  <section id="resources">
+    <h2>推荐资源</h2>
+    <p>推荐资源页面提供技能构建和代码代理实践的参考资料：</p>
+
+    <ul>
+      <li>
+        <strong>Agent Skills: Skill Creation Best Practices</strong>
+        — 来自 agentskills.io 的技能创建最佳实践，点击打开外部链接
+      </li>
+      <li>
+        <strong>Claude Code 最佳实践</strong>
+        — Claude Code 官方中文最佳实践文档，点击打开外部链接
+      </li>
+      <li>
+        <strong>The Complete Guide to Building Skill for Claude</strong>
+        — 内置 PDF 文档，点击后<strong>在应用内弹窗预览</strong>，无需外部阅读器
+      </li>
+    </ul>
+  </section>
+
+  <!-- Settings -->
+  <section id="settings">
+    <h2>设置</h2>
+    <p>
+      设置页面采用<strong>左侧导航 + 右侧内容区</strong>的布局，包含五个标签页。
+      点击顶部「← 返回」按钮可回到上一页面。
+    </p>
+  </section>
+
+  <!-- Settings - Data -->
+  <section id="settings-data">
+    <h3>数据设置</h3>
+    <p>管理 SkillHub 的<strong>数据存储目录</strong>：</p>
+    <ul>
+      <li>显示当前数据目录的完整路径</li>
+      <li>点击 <strong>「更改」</strong>按钮打开系统原生文件夹选择器，设置新的数据目录</li>
+      <li>修改后会自动触发侧边栏和技能列表的刷新</li>
+      <li>默认路径为系统应用数据目录下的 <code>SkillsHub</code> 文件夹</li>
+    </ul>
+  </section>
+
+  <!-- Settings - AI Model -->
+  <section id="settings-ai">
+    <h3>AI 模型设置</h3>
+    <p>配置 AI 大模型端点，用于 AI 草稿生成、Commit 信息生成、AI 翻译等功能：</p>
+
+    <h4>端点管理</h4>
+    <ul>
+      <li>支持<strong>添加、编辑端点</strong>（供应商名称、API Key、API 地址）</li>
+      <li><strong>测试连接</strong> — 点击按钮验证端点是否可用，成功后在卡片内显示绿色「端点链接成功」提示（3 秒后消失）</li>
+      <li>端点卡片显示验证状态标签（已验证 / 未验证）、API URL 和模型数量</li>
+    </ul>
+
+    <h4>模型管理</h4>
+    <ul>
+      <li>为每个端点<strong>添加模型</strong>，配置模型名称、类型（对话模型）、自定义名称</li>
+      <li>可设置模型为<strong>默认模型</strong>（用于 Quick Add、文本测试、翻译等场景）</li>
+      <li>支持<strong>删除模型</strong></li>
+    </ul>
+
+    <div class="info-box tip">
+      <div class="info-box-title">兼容性</div>
+      <p style="margin: 0;">SkillHub 兼容所有 <strong>OpenAI API 格式</strong>的服务商，如 DeepSeek、Kimi、通义千问等。只需填写正确的 API 地址和 Key 即可。</p>
+    </div>
+  </section>
+
+  <!-- Settings - Skill -->
+  <section id="settings-skill">
+    <h3>Skill 平台配置</h3>
+    <p>为<strong> 7 个主流 AI 平台</strong>配置技能存放路径，控制是否在技能详情页的「平台集成」面板中显示：</p>
+
+    <ul>
+      <li>每个平台卡片显示<strong>品牌图标</strong>和平台名称</li>
+      <li><strong>存放路径</strong> — 显示当前配置的路径，点击「更改」通过系统文件夹选择器修改</li>
+      <li><strong>启用开关</strong> — 勾选「在平台集成中启用」后，该平台会出现在技能详情页的集成面板中</li>
+      <li>配置自动保存到 <code>localStorage</code>，无需手动点击保存</li>
+    </ul>
+
+    <p>支持的平台：<strong>GitHub Copilot、Cursor、Gemini CLI、Antigravity、Windsurf、Trae、Qoder</strong></p>
+  </section>
+
+  <!-- Settings - Repo -->
+  <section id="settings-repo">
+    <h3>代码仓库设置</h3>
+    <p>配置用于<strong>分发技能</strong>的远程 Git 仓库（上传技能时的目标仓库）：</p>
+
+    <ul>
+      <li><strong>添加仓库</strong> — 填写仓库名称、选择类型（GitHub / Gerrit）、输入 Git URL 和默认分支</li>
+      <li>仓库类型切换为 <strong>Gerrit</strong> 时，需额外填写 SSH 用户名</li>
+      <li>已添加的仓库以卡片列表形式展示，显示仓库名称、类型标签、URL 和分支</li>
+      <li>点击垃圾桶按钮<strong>删除仓库</strong>配置</li>
+      <li>仓库配置数据持久化到 <code>localStorage</code></li>
+    </ul>
+
+    <div class="info-box">
+      <div class="info-box-title">仓库 URL 格式</div>
+      <p style="margin: 0;">
+        <strong>GitHub:</strong> <code>https://github.com/YourUsername/RepositoryName</code><br>
+        <strong>Gerrit:</strong> <code>ssh://user@gerrit-ai.sophgo.vip:29418/repo-name</code>
+      </p>
+    </div>
+  </section>
+
+  <!-- Settings - About -->
+  <section id="settings-about">
+    <h3>关于</h3>
+    <p>关于页面包含两个区域：</p>
+
+    <h4>检查更新</h4>
+    <ul>
+      <li><strong>自动检查更新</strong> — 滑动开关，控制应用启动时是否自动检查新版本</li>
+      <li>开关状态持久化到 <code>localStorage</code></li>
+      <li>关闭后，启动时不会触发自动更新检查（不影响手动检查）</li>
+    </ul>
+
+    <h4>作者信息</h4>
+    <ul>
+      <li><strong>GitHub: @JansonXIE</strong> — 点击跳转到作者 GitHub 主页</li>
+      <li><strong>Email: jianxing.xie@sophgo.com</strong> — 点击拉起系统默认邮件客户端，方便反馈 Bug 或建议</li>
+    </ul>
+  </section>
+
+  <!-- Footer -->
+  <div style="margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: 13px;">
+    <p>SkillHub 使用说明文档 · 版本 0.2.9 · 更新于 2026-05-22</p>
+    <p>如有问题或建议，请联系 <a href="mailto:jianxing.xie@sophgo.com" style="color: var(--color-primary);">jianxing.xie@sophgo.com</a></p>
+  </div>
+
+</main>
+
+<!-- Back to Top -->
+<button class="back-to-top" id="backToTop" title="回到顶部">↑</button>
+
+<script>
+  // Sidebar active state tracking
+  const navLinks = document.querySelectorAll('.sidebar-nav a');
+  const sections = new Set();
+  navLinks.forEach(link => {
+    const href = link.getAttribute('href');
+    if (href && href.startsWith('#')) {
+      sections.add(href.substring(1));
+    }
+  });
+
+  function updateActiveLink() {
+    let currentId = '';
+    for (const id of sections) {
+      const el = document.getElementById(id);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        if (rect.top <= 120) {
+          currentId = id;
+        }
+      }
+    }
+    navLinks.forEach(link => {
+      const href = link.getAttribute('href');
+      if (href === '#' + currentId) {
+        link.classList.add('active');
+      } else {
+        link.classList.remove('active');
+      }
+    });
+  }
+
+  window.addEventListener('scroll', updateActiveLink);
+
+  // Back to top button
+  const backToTopBtn = document.getElementById('backToTop');
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 400) {
+      backToTopBtn.classList.add('visible');
+    } else {
+      backToTopBtn.classList.remove('visible');
+    }
+  });
+  backToTopBtn.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+</script>
+
+</body>
+</html>
