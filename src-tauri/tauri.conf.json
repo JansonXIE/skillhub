@@ -38,7 +38,9 @@
     "active": true,
     "targets": [
       "nsis",
-      "msi"
+      "msi",
+      "deb",
+      "appimage"
     ],
     "createUpdaterArtifacts": true,
     "icon": [
