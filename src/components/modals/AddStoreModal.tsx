@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Store, X, Loader2, AlertCircle, Link as LinkIcon, Server, GitBranch } from 'lucide-react';
 import { parseGitHubUrl, detectRepoStructure, fetchSkillsFromRepo } from '../../utils/github';
-import { parseGerritUrl, isGerritUrl, generateStoreId, fetchStoreSkills, detectGerritStructure } from '../../utils/storeRepo';
+import { parseGerritUrl, generateStoreId, fetchStoreSkills, detectGerritStructure } from '../../utils/storeRepo';
 import type { StoreRepo } from '../../types/store';
 
 interface Props {

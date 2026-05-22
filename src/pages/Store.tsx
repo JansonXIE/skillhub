@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Store as StoreIcon, RefreshCw, Download, ExternalLink, Loader2, Package } from 'lucide-react';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { EmptyState } from '../components/EmptyState';
-import { fetchSkillsFromRepo, fetchSkillContent, extractDescription, invalidateRepoCache } from '../utils/github';
+import { fetchSkillContent, extractDescription, invalidateRepoCache } from '../utils/github';
 import { fetchStoreSkills, importSkillFromStoreRepo } from '../utils/storeRepo';
 import type { StoreRepo, StoreSkill } from '../types/store';
 

@@ -1,6 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { StoreRepo, StoreSkill } from '../types/store';
-import { parseGitHubUrl } from './github';
 
 /**
  * Parse a Gerrit URL and extract host, port, and project path.
