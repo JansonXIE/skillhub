@@ -4,7 +4,7 @@ import { Store as StoreIcon, RefreshCw, Download, ExternalLink, Loader2, Package
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { EmptyState } from '../components/EmptyState';
 import { fetchSkillContent, extractDescription, invalidateRepoCache } from '../utils/github';
-import { fetchStoreSkills, importSkillFromStoreRepo } from '../utils/storeRepo';
+import { fetchStoreSkills, importSkillFromStoreRepo, loadStoreReposWithMigration, writeStoreRepos } from '../utils/storeRepo';
 import type { StoreRepo, StoreSkill } from '../types/store';
 
 export function Store() {
@@ -33,14 +33,9 @@ export function Store() {
 
   // Load store repos from localStorage
   useEffect(() => {
-    const loadRepos = () => {
-      const stored = localStorage.getItem('skillhub-store-repos');
-      if (stored) {
-        try {
-          setStoreRepos(JSON.parse(stored));
-        } catch { /* ignore */ }
-      }
-    };
+ const loadRepos = () => {
+ setStoreRepos(loadStoreReposWithMigration());
+ };
     loadRepos();
     window.addEventListener('store-repos-updated', loadRepos);
     return () => window.removeEventListener('store-repos-updated', loadRepos);
@@ -72,6 +67,12 @@ export function Store() {
       try {
         const result = await fetchStoreSkills(activeRepo);
         setSkills(result);
+
+ if (activeRepo.skillCount !== result.length) {
+ writeStoreRepos(loadStoreReposWithMigration().map(r =>
+ r.id === activeRepo.id ? { ...r, skillCount: result.length } : r
+));
+ }
       } catch (error) {
         console.error('Failed to fetch store skills:', error);
         setSkills([]);

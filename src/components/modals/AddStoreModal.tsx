@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Store, X, Loader2, AlertCircle, Link as LinkIcon, Server, GitBranch } from 'lucide-react';
 import { parseGitHubUrl, detectRepoStructure, fetchSkillsFromRepo } from '../../utils/github';
-import { parseGerritUrl, generateStoreId, fetchStoreSkills, detectGerritStructure } from '../../utils/storeRepo';
+import { parseGerritUrl, generateStoreId, fetchStoreSkills, detectGerritStructure, loadStoreReposWithMigration, writeStoreRepos } from '../../utils/storeRepo';
 import type { StoreRepo } from '../../types/store';
 
 interface Props {
@@ -23,13 +23,12 @@ export function AddStoreModal({ isOpen, onClose, onAdded }: Props) {
     setError('');
     const trimmedUrl = url.trim();
 
-    // Check for duplicates
-    const stored = localStorage.getItem('skillhub-store-repos');
-    const existing: StoreRepo[] = stored ? JSON.parse(stored) : [];
-    if (existing.some(r => r.url === trimmedUrl)) {
-      setError('该仓库已添加');
-      return;
-    }
+ // Check for duplicates
+ const existing = loadStoreReposWithMigration();
+ if (existing.some(r => r.url.trim() === trimmedUrl)) {
+ setError('该仓库已添加');
+ return;
+ }
 
     setLoading(true);
     try {
@@ -57,8 +56,7 @@ export function AddStoreModal({ isOpen, onClose, onAdded }: Props) {
         };
 
         const updated = [...existing, newRepo];
-        localStorage.setItem('skillhub-store-repos', JSON.stringify(updated));
-        window.dispatchEvent(new Event('store-repos-updated'));
+ writeStoreRepos(updated);
         onAdded(newRepo);
         setUrl('');
         setCustomName('');
@@ -100,8 +98,7 @@ export function AddStoreModal({ isOpen, onClose, onAdded }: Props) {
         };
 
         const updated = [...existing, newRepo];
-        localStorage.setItem('skillhub-store-repos', JSON.stringify(updated));
-        window.dispatchEvent(new Event('store-repos-updated'));
+ writeStoreRepos(updated);
         onAdded(newRepo);
         setUrl('');
         setCustomName('');

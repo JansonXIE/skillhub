@@ -5,6 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { AddStoreModal } from './modals/AddStoreModal';
 import type { StoreRepo } from '../types/store';
+import { loadStoreReposWithMigration, writeStoreRepos } from '../utils/storeRepo';
 
 interface SkillInfo {
   name: string;
@@ -66,24 +67,17 @@ export function Sidebar() {
     }
   };
 
-  const loadStoreRepos = () => {
-    const stored = localStorage.getItem('skillhub-store-repos');
-    if (stored) {
-      try {
-        setStoreRepos(JSON.parse(stored));
-      } catch { /* ignore */ }
-    } else {
-      setStoreRepos([]);
-    }
-  };
+
+ const loadStoreRepos = () => {
+ setStoreRepos(loadStoreReposWithMigration());
+ };
 
   const handleDeleteStoreRepo = (e: React.MouseEvent, repoId: string) => {
     e.preventDefault();
     e.stopPropagation();
     const updated = storeRepos.filter(r => r.id !== repoId);
-    setStoreRepos(updated);
-    localStorage.setItem('skillhub-store-repos', JSON.stringify(updated));
-    window.dispatchEvent(new Event('store-repos-updated'));
+ setStoreRepos(updated);
+ writeStoreRepos(updated);
     // If we're currently viewing the deleted repo, navigate to store
     if (location.pathname.startsWith('/store/')) {
       navigate('/store');

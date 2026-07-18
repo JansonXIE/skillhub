@@ -1,5 +1,19 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { StoreRepo, StoreSkill } from '../types/store';
+import { parseGitHubUrl } from './github';
+
+export const STORE_REPOS_KEY = 'skillhub-store-repos';
+export const LEGACY_REPOS_KEY = 'skillhub-repos';
+export const STORE_REPOS_UPDATED_EVENT = 'store-repos-updated';
+
+interface LegacyRepoConfig {
+ id: string;
+ name: string;
+ url: string;
+ branch: string;
+ type: 'github' | 'gerrit';
+ sshUser?: string;
+}
 
 /**
  * Parse a Gerrit URL and extract host, port, and project path.
@@ -45,6 +59,100 @@ export function isGerritUrl(url: string): boolean {
  */
 export function generateStoreId(type: 'github' | 'gerrit', identifier: string): string {
   return `${type}-${identifier.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+}
+
+function readJsonArray<T>(key: string): T[] {
+ const stored = localStorage.getItem(key);
+ if (!stored) return [];
+
+ try {
+ const parsed = JSON.parse(stored);
+ return Array.isArray(parsed) ? parsed : [];
+ } catch (error) {
+ console.error(`Failed to parse ${key}:`, error);
+ return [];
+ }
+}
+
+function legacyRepoToStoreRepo(repo: LegacyRepoConfig): StoreRepo | null {
+ const trimmedUrl = repo.url?.trim();
+ if (!trimmedUrl) return null;
+
+ if (repo.type === 'github') {
+ const parsed = parseGitHubUrl(trimmedUrl);
+ if (!parsed) {
+ console.warn('Failed to migrate invalid GitHub repo:', repo);
+ return null;
+ }
+
+ return {
+ id: generateStoreId('github', `${parsed.owner}/${parsed.repo}`),
+ type: 'github',
+ owner: parsed.owner,
+ repo: parsed.repo,
+ name: repo.name?.trim() || parsed.repo,
+ url: trimmedUrl,
+ branch: repo.branch || 'main',
+ skillsPath: '',
+ skillCount: 0,
+ };
+ }
+
+ const parsed = parseGerritUrl(trimmedUrl);
+ if (!parsed) {
+ console.warn('Failed to migrate invalid Gerrit repo:', repo);
+ return null;
+ }
+
+ return {
+ id: generateStoreId('gerrit', `${parsed.host}/${parsed.project}`),
+ type: 'gerrit',
+ owner: parsed.host,
+ repo: parsed.project,
+ name: repo.name?.trim() || parsed.project.split('/').pop() || parsed.project,
+ url: trimmedUrl,
+ branch: repo.branch || 'master',
+ sshUser: repo.sshUser?.trim() || parsed.user,
+ skillsPath: '',
+ skillCount: 0,
+ };
+}
+
+export function readStoreRepos(): StoreRepo[] {
+ return readJsonArray<StoreRepo>(STORE_REPOS_KEY);
+}
+
+export function writeStoreRepos(repos: StoreRepo[]): void {
+ localStorage.setItem(STORE_REPOS_KEY, JSON.stringify(repos));
+ window.dispatchEvent(new Event(STORE_REPOS_UPDATED_EVENT));
+}
+
+export function loadStoreReposWithMigration(): StoreRepo[] {
+ const current = readStoreRepos();
+ const legacy = readJsonArray<LegacyRepoConfig>(LEGACY_REPOS_KEY);
+ if (legacy.length ===0) return current;
+
+ const merged = [...current];
+ let changed = false;
+
+ legacy
+ .map(legacyRepoToStoreRepo)
+ .filter((repo): repo is StoreRepo => Boolean(repo))
+ .forEach(repo => {
+ const duplicate = merged.some(existing =>
+ existing.id === repo.id || existing.url.trim() === repo.url.trim()
+ );
+ if (!duplicate) {
+ merged.push(repo);
+ changed = true;
+ }
+ });
+
+ if (changed) {
+ writeStoreRepos(merged);
+ }
+
+ return merged;
 }
 
 /**

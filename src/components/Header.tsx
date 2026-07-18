@@ -6,8 +6,7 @@ import { appDataDir, join } from '@tauri-apps/api/path';
 import { NewSkillModal } from './NewSkillModal';
 import { AIReviewModal } from './modals/AIReviewModal';
 import { fetchSkillsFromRepo } from '../utils/github';
-import { fetchStoreSkills } from '../utils/storeRepo';
-import type { StoreRepo } from '../types/store';
+import { fetchStoreSkills, loadStoreReposWithMigration } from '../utils/storeRepo';
 
 interface SkillInfo {
   name: string;
@@ -61,7 +60,7 @@ export function Header() {
   }, []);
 
   const getActiveStoreRepo = useCallback(() => {
-    const storeRepos = readStoredJson<StoreRepo[]>('skillhub-store-repos', []);
+    const storeRepos = loadStoreReposWithMigration();
     if (storeRepos.length === 0) {
       return null;
     }

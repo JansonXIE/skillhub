@@ -2,15 +2,8 @@ import { useState, useEffect } from 'react';
 import { X, UploadCloud, Check, GitBranch, Server } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
-
-interface RepoConfig {
-  id: string;
-  name: string;
-  url: string;
-  branch: string;
-  type: 'github' | 'gerrit';
-  sshUser?: string;
-}
+import type { StoreRepo } from '../../types/store';
+import { loadStoreReposWithMigration } from '../../utils/storeRepo';
 
 interface UploadSkillModalProps {
   isOpen: boolean;
@@ -19,7 +12,7 @@ interface UploadSkillModalProps {
 }
 
 export function UploadSkillModal({ isOpen, onClose, skillName }: UploadSkillModalProps) {
-  const [repos, setRepos] = useState<RepoConfig[]>([]);
+  const [repos, setRepos] = useState<StoreRepo[]>([]);
   const [selectedRepoId, setSelectedRepoId] = useState<string>('');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
@@ -27,24 +20,15 @@ export function UploadSkillModal({ isOpen, onClose, skillName }: UploadSkillModa
   const [amend, setAmend] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      const saved = localStorage.getItem('skillhub-repos');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setRepos(parsed);
-          if (parsed.length > 0) {
-            setSelectedRepoId(parsed[0].id);
-          }
-        } catch (e) {
-          console.error('Failed to parse repos', e);
-        }
-      }
-      setError(null);
-      setAmend(false);
-    }
-  }, [isOpen]);
+ useEffect(() => {
+ if (isOpen) {
+ const loadedRepos = loadStoreReposWithMigration();
+ setRepos(loadedRepos);
+ setSelectedRepoId(loadedRepos[0]?.id || '');
+ setError(null);
+ setAmend(false);
+ }
+ }, [isOpen]);
 
   if (!isOpen) return null;
 
