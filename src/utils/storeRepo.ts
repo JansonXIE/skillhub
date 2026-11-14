@@ -207,6 +207,25 @@ export async function fetchStoreSkillContent(
 }
 
 /**
+ * Batch-fetch the contents (SKILL.md / README.md) of multiple skills from a
+ * Gerrit store repo in one backend call. The backend runs git in parallel,
+ * which is much faster than invoking fetchStoreSkillContent per skill.
+ * Returns a map of skillPath -> file content (missing entries mean not found).
+ */
+export async function fetchStoreSkillContentsBatch(
+  repo: StoreRepo,
+  skillPaths: string[]
+): Promise<Record<string, string>> {
+  const result: string = await invoke('fetch_store_skill_contents_batch', {
+    repoUrl: repo.url,
+    branch: repo.branch || 'master',
+    storeId: repo.id,
+    skillPaths,
+  });
+  return JSON.parse(result);
+}
+
+/**
  * Import a skill from a store repo (GitHub or Gerrit).
  */
 export async function importSkillFromStoreRepo(

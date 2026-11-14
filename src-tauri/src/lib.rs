@@ -5,6 +5,21 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashSet;
 use serde::{Serialize, Deserialize};
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+// Prevents a console window from flashing for every spawned process on Windows
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+fn new_cmd(program: &str) -> Command {
+    #[allow(unused_mut)]
+    let mut cmd = Command::new(program);
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd
+}
+
 
 #[derive(Serialize, Deserialize)]
 pub struct SkillInfo {
@@ -45,7 +60,7 @@ async fn clone_github_repo(url: String, base_path: String) -> Result<String, Str
     }
 
     // Run git clone
-    let output = Command::new("git")
+    let output = new_cmd("git")
         .args(["clone", &url, dest_path.to_str().unwrap()])
         .output()
         .map_err(|e| format!("Failed to execute git clone: {}", e))?;
@@ -377,6 +392,70 @@ async fn fetch_store_skill_content(
     Err("No SKILL.md or README.md found in skill directory".to_string())
 }
 
+// Limit concurrent git processes so we don't open too many SSH connections at once
+const GIT_PARALLELISM: usize = 8;
+
+/// Run `git show` for a list of refs in parallel (chunked), returning (key, content) pairs.
+/// Each job is (key, candidate refs tried in order); content is None if no ref resolved.
+fn git_show_parallel(cache_dir: &Path, jobs: Vec<(String, Vec<String>)>) -> Vec<(String, Option<String>)> {
+    let mut results: Vec<(String, Option<String>)> = Vec::with_capacity(jobs.len());
+    for chunk in jobs.chunks(GIT_PARALLELISM) {
+        let chunk_results: Vec<(String, Option<String>)> = std::thread::scope(|s| {
+            let handles: Vec<_> = chunk
+                .iter()
+                .map(|(key, refs)| {
+                    s.spawn(move || {
+                        for file_ref in refs {
+                            if let Ok(content) = run_git_cmd(&["show", file_ref], Some(cache_dir)) {
+                                return (key.clone(), Some(content));
+                            }
+                        }
+                        (key.clone(), None)
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .filter_map(|h| h.join().ok())
+                .collect()
+        });
+        results.extend(chunk_results);
+    }
+    results
+}
+
+#[tauri::command]
+async fn fetch_store_skill_contents_batch(
+    repo_url: String,
+    branch: String,
+    store_id: String,
+    skill_paths: Vec<String>,
+) -> Result<String, String> {
+    let cache_base = get_store_cache_dir()?;
+    let cache_dir = cache_base.join(&store_id);
+
+    if !cache_dir.join(".git").exists() {
+        run_git_cmd(&["clone", "--depth", "1", "--filter=blob:none", "--no-checkout", "-b", &branch, &repo_url, cache_dir.to_str().unwrap()], None)?;
+    }
+
+    let jobs: Vec<(String, Vec<String>)> = skill_paths
+        .into_iter()
+        .map(|path| {
+            let refs = ["SKILL.md", "README.md"]
+                .iter()
+                .map(|f| format!("origin/{}:{}/{}", branch, path, f))
+                .collect();
+            (path, refs)
+        })
+        .collect();
+
+    let map: std::collections::HashMap<String, String> = git_show_parallel(&cache_dir, jobs)
+        .into_iter()
+        .filter_map(|(path, content)| content.map(|c| (path, c)))
+        .collect();
+    serde_json::to_string(&map).map_err(|e| format!("Failed to serialize: {}", e))
+}
+
 #[tauri::command]
 async fn fetch_store_skill_file_tree(
     repo_url: String,
@@ -400,7 +479,7 @@ async fn fetch_store_skill_file_tree(
         content: String,
     }
 
-    let mut files: Vec<FileEntry> = Vec::new();
+    let mut jobs: Vec<(String, Vec<String>)> = Vec::new();
     for line in ls_output.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 4 && parts[1] == "blob" {
@@ -413,11 +492,15 @@ async fn fetch_store_skill_file_tree(
                 || !name.contains('.')
             {
                 let file_ref = format!("origin/{}:{}/{}", branch, skill_path, name);
-                let content = run_git_cmd(&["show", &file_ref], Some(&cache_dir)).unwrap_or_default();
-                files.push(FileEntry { path: name, content });
+                jobs.push((name, vec![file_ref]));
             }
         }
     }
+
+    let files: Vec<FileEntry> = git_show_parallel(&cache_dir, jobs)
+        .into_iter()
+        .map(|(path, content)| FileEntry { path, content: content.unwrap_or_default() })
+        .collect();
 
     serde_json::to_string(&files).map_err(|e| format!("Failed to serialize: {}", e))
 }
@@ -455,19 +538,24 @@ async fn import_skill_from_store(
     fs::create_dir_all(&dest_path)
         .map_err(|e| format!("Failed to create skill directory: {}", e))?;
 
+    let mut jobs: Vec<(String, Vec<String>)> = Vec::new();
     for line in ls_output.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 4 && parts[1] == "blob" {
             let name = parts[3].to_string();
             let file_ref = format!("origin/{}:{}/{}", branch, skill_path, name);
-            if let Ok(content) = run_git_cmd(&["show", &file_ref], Some(&cache_dir)) {
-                let file_dest = dest_path.join(&name);
-                if let Some(parent) = file_dest.parent() {
-                    let _ = fs::create_dir_all(parent);
-                }
-                let _ = fs::write(&file_dest, content);
-                has_files = true;
+            jobs.push((name, vec![file_ref]));
+        }
+    }
+
+    for (name, content) in git_show_parallel(&cache_dir, jobs) {
+        if let Some(content) = content {
+            let file_dest = dest_path.join(&name);
+            if let Some(parent) = file_dest.parent() {
+                let _ = fs::create_dir_all(parent);
             }
+            let _ = fs::write(&file_dest, content);
+            has_files = true;
         }
     }
 
@@ -499,7 +587,7 @@ fn get_gerrit_cache_dir() -> Result<std::path::PathBuf, String> {
 }
 
 fn run_git_cmd(args: &[&str], cwd: Option<&Path>) -> Result<String, String> {
-    let mut cmd = Command::new("git");
+    let mut cmd = new_cmd("git");
     cmd.args(args);
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
@@ -588,7 +676,7 @@ async fn install_gerrit_hook(repo_dir: String) -> Result<String, String> {
     let port = "29418";
     let user = "jianxing.xie";
 
-    let output = Command::new("scp")
+    let output = new_cmd("scp")
         .args([
             "-p", "-P", port,
             &format!("{}@{}:hooks/commit-msg", user, host),
@@ -771,6 +859,7 @@ pub fn run() {
         batch_install_skill, prepare_skill_commit, commit_and_push_skill,
         install_gerrit_hook, prepare_gerrit_commit, commit_and_push_to_gerrit,
         fetch_store_skills, fetch_store_skill_content,
+        fetch_store_skill_contents_batch,
         fetch_store_skill_file_tree, import_skill_from_store
     ])
     .setup(|app| {

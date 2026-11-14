@@ -115,25 +115,41 @@ export function Store() {
     const fetchDescs = async () => {
       const newDescriptions: Record<string, string> = { ...descriptions };
       const batch = skills.slice(0, 30);
-      const promises = batch.map(async (skill) => {
-        const key = `${skill.owner}/${skill.repo}/${skill.path}`;
-        if (newDescriptions[key]) return;
-        try {
-          if (activeRepo.type === 'github') {
+
+      if (activeRepo.type === 'github') {
+        const promises = batch.map(async (skill) => {
+          const key = `${skill.owner}/${skill.repo}/${skill.path}`;
+          if (newDescriptions[key]) return;
+          try {
             const content = await fetchSkillContent(skill.owner, skill.repo, skill.path);
             newDescriptions[key] = extractDescription(content);
-          } else {
-            // Gerrit: try fetching via backend
-            const { fetchStoreSkillContent } = await import('../utils/storeRepo');
-            const content = await fetchStoreSkillContent(activeRepo, skill.path);
-            newDescriptions[key] = extractDescription(content);
+          } catch {
+            newDescriptions[key] = '暂无描述';
           }
-        } catch {
-          newDescriptions[key] = '暂无描述';
+        });
+        await Promise.allSettled(promises);
+      } else {
+        // Gerrit: fetch all descriptions in one backend call (parallel git on the Rust side)
+        const pending = batch.filter(
+          skill => !newDescriptions[`${skill.owner}/${skill.repo}/${skill.path}`]
+        );
+        if (pending.length > 0) {
+          try {
+            const { fetchStoreSkillContentsBatch } = await import('../utils/storeRepo');
+            const contents = await fetchStoreSkillContentsBatch(activeRepo, pending.map(s => s.path));
+            for (const skill of pending) {
+              const key = `${skill.owner}/${skill.repo}/${skill.path}`;
+              const content = contents[skill.path];
+              newDescriptions[key] = content ? extractDescription(content) : '暂无描述';
+            }
+          } catch {
+            for (const skill of pending) {
+              newDescriptions[`${skill.owner}/${skill.repo}/${skill.path}`] = '暂无描述';
+            }
+          }
         }
-      });
+      }
 
-      await Promise.allSettled(promises);
       setDescriptions(newDescriptions);
     };
 
