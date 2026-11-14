@@ -332,7 +332,7 @@ export function UploadSkillModal({ isOpen, onClose, skillName }: UploadSkillModa
 
           {repos.length === 0 ? (
             <div className="p-4 bg-orange-50 text-orange-600 rounded-lg text-sm mb-4">
-              尚未配置任何代码仓库。请先在 <strong>设置 - skill 仓库</strong> 中添加配置。
+              尚未配置任何代码仓库。请先在 <strong>设置 - Skill 商店</strong> 中添加配置。
             </div>
           ) : (
             <div style={styles.row}>

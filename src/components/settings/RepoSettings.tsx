@@ -173,7 +173,7 @@ export function RepoSettings() {
 
  return (
  <div className="settings-section fade-in max-w-4xl">
- <h2 className="settings-title">代码仓库设置</h2>
+ <h2 className="settings-title">Skill 商店代码仓库设置</h2>
  <h3 className="settings-subtitle">配置用于保存 Skill目录的 GitHub 或 Gerrit 仓库</h3>
 
  <div style={{ display: 'flex', flexDirection: 'column' }}>

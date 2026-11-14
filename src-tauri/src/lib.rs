@@ -5,6 +5,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashSet;
 use serde::{Serialize, Deserialize};
 
+mod ssh;
+
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
@@ -31,6 +33,8 @@ pub struct SkillInfo {
 pub struct InstallTarget {
     pub platform_id: String,
     pub target_path: String,
+    #[serde(default)]
+    pub remote: Option<ssh::RemoteInfo>,
 }
 
 #[tauri::command]
@@ -254,6 +258,15 @@ async fn batch_install_skill(data_path: String, skill_name: String, targets: Vec
     let mut errors = Vec::new();
 
     for target in targets {
+        // Remote targets go over SFTP instead of the local filesystem
+        if let Some(remote) = &target.remote {
+            match ssh::install_skill_to_remote(remote, &target.target_path, &skill_name, &source_dir).await {
+                Ok(_) => success_count += 1,
+                Err(e) => errors.push(format!("{}: {}", target.platform_id, e)),
+            }
+            continue;
+        }
+
         let expanded_path = expand_env_vars(&target.target_path);
         let dest_base = Path::new(&expanded_path);
         let dest_dir = dest_base.join(&skill_name);
@@ -860,7 +873,8 @@ pub fn run() {
         install_gerrit_hook, prepare_gerrit_commit, commit_and_push_to_gerrit,
         fetch_store_skills, fetch_store_skill_content,
         fetch_store_skill_contents_batch,
-        fetch_store_skill_file_tree, import_skill_from_store
+        fetch_store_skill_file_tree, import_skill_from_store,
+        ssh::save_ssh_password, ssh::delete_ssh_password, ssh::test_ssh_connection
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {

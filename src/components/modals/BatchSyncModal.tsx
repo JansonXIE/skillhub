@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Send, CheckSquare, Square, ExternalLink, Cpu, Sparkles, Compass, Folder } from 'lucide-react';
+import { X, Send, CheckSquare, Square, ExternalLink, Cpu, Sparkles, Compass, Folder, Server } from 'lucide-react';
 import {
  DEFAULT_USER_SETTINGS,
+ buildInstallTarget,
  getAllPlatforms,
  normalizeUserPlatformSettings,
+ type InstallTargetPayload,
  type PlatformConfig,
  type UserPlatformSettings
 } from '../../config/platforms';
@@ -86,11 +88,13 @@ export function BatchSyncModal({ isOpen, onClose, selectedSkillNames, onSyncComp
  if (id === 'trae') return <Sparkles size={20} style={{ color: '#3b82f6' }} />;
  if (id === 'antigravity') return <Compass size={20} className="text-primary" style={{ color: 'var(--color-primary)' }} />;
  if (id === 'claude-code') return <Sparkles size={20} style={{ color: '#d97706' }} />;
+ if (id.startsWith('remote-directory-')) return <Server size={20} className="text-primary" />;
  if (id.startsWith('custom-directory-')) return <Folder size={20} className="text-secondary" />;
  return <Cpu size={20} />;
  };
 
  const getDisplaySubId = (platform: PlatformConfig) => {
+ if (platform.remote) return `${platform.remote.username}@${platform.remote.host}`;
  if (platform.isCustom) return 'custom';
  if (platform.id === 'vscode-copilot') return 'copilot';
  return platform.id;
@@ -118,15 +122,13 @@ export function BatchSyncModal({ isOpen, onClose, selectedSkillNames, onSyncComp
  }
  const latestPlatforms = getAllPlatforms(nextSettings);
 
- // 拼装选中的平台配置目标
- const targets = Array.from(selectedPlatforms).map(id => {
- const customPath = nextSettings.customPaths[id];
- const defaultPath = latestPlatforms.find(p => p.id === id)?.defaultPath || '';
- return {
- platform_id: id,
- target_path: customPath || defaultPath
- };
- }).filter(t => t.target_path);
+ // 拼装选中的平台配置目标（本地目录或远程 SSH 目标）
+ const targets = Array.from(selectedPlatforms)
+ .map(id => buildInstallTarget(
+ latestPlatforms.find(p => p.id === id),
+ nextSettings.customPaths[id]
+ ))
+ .filter((t): t is InstallTargetPayload => t !== null);
 
  if (targets.length ===0) {
  alert('未检测到有效的同步路径，请先在设置中配置平台路径。');
@@ -259,7 +261,7 @@ export function BatchSyncModal({ isOpen, onClose, selectedSkillNames, onSyncComp
  style={{ outline: 'none', padding: '6px 16px', fontSize: '0.8125rem' }}
  onClick={(e) => handleGoToSettings(e)}
  >
- 前往设置-Skill启用平台
+ 前往设置-Skill 存放目录启用平台
  </button>
  </div>
  ) : (

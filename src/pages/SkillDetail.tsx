@@ -3,11 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import {
- ArrowLeft, ShieldCheck, Globe, CheckSquare, Download, LayoutGrid, Star, Folder
+ ArrowLeft, ShieldCheck, Globe, CheckSquare, Download, LayoutGrid, Star, Folder, Server
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { AITranslationModal } from '../components/modals/AITranslationModal';
-import { DEFAULT_USER_SETTINGS, getAllPlatforms, normalizeUserPlatformSettings, type PlatformConfig, type UserPlatformSettings } from '../config/platforms';
+import { DEFAULT_USER_SETTINGS, buildInstallTarget, getAllPlatforms, normalizeUserPlatformSettings, type InstallTargetPayload, type PlatformConfig, type UserPlatformSettings } from '../config/platforms';
 
 export function SkillDetail() {
  const { skillName } = useParams();
@@ -209,6 +209,9 @@ export function SkillDetail() {
  };
 
  const renderPlatformIcon = (platform: PlatformConfig) => {
+ if (platform.remote) {
+ return <Server size={32} className="text-primary" />;
+ }
  if (!platform.icon) {
  return <Folder size={32} className="text-secondary" />;
  }
@@ -236,15 +239,13 @@ export function SkillDetail() {
  dataPath = await join(baseDir, 'SkillsHub');
  }
 
- // Collect target paths for selected platforms
- const targets = Array.from(selectedPlatforms).map(id => {
- const customPath = platformSettings.customPaths[id];
- const defaultPath = allPlatforms.find(p => p.id === id)?.defaultPath || '';
- return {
- platform_id: id,
- target_path: customPath || defaultPath
- };
- }).filter(t => t.target_path); // filter out empty paths
+ // Collect targets (local directories or remote SSH targets) for selected platforms
+ const targets = Array.from(selectedPlatforms)
+ .map(id => buildInstallTarget(
+ allPlatforms.find(p => p.id === id),
+ platformSettings.customPaths[id]
+ ))
+ .filter((t): t is InstallTargetPayload => t !== null);
 
  const result = await invoke('batch_install_skill', {
  dataPath,

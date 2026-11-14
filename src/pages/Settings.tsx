@@ -26,8 +26,8 @@ const GithubIconSvg = ({ size = 18 }: { size?: number }) => (
 const SETTINGS_TABS = [
   { id: 'data', name: '数据设置', icon: Database },
   { id: 'ai', name: 'AI 模型', icon: Cpu },
-  { id: 'skill', name: 'Skill', icon: Sparkles },
-  { id: 'repo', name: 'skill 仓库', icon: UploadCloud },
+  { id: 'skill', name: 'Skill 存放目录', icon: Sparkles },
+  { id: 'repo', name: 'Skill 商店', icon: UploadCloud },
   { id: 'about', name: '关于', icon: Info },
 ];
 

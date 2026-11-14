@@ -1,5 +1,31 @@
 # 更新日志 (CHANGELOG)
 
+## [0.2.10] - 2026-11-14
+
+### 新增
+- **远程服务器 Skill 分发（SSH/SFTP）**:
+  - 「设置 - Skill 存放目录」新增「添加远程目录」按钮，支持将远程服务器配置为同步目标：主机、端口、用户名、远程路径（默认 `~/.claude/skills`，支持 `~` 按远程用户主目录展开）、认证方式（SSH 密钥 / 密码）。
+  - 配置弹窗内置「测试连接」按钮，实时验证 SSH 认证并显示解析后的远程路径及其是否存在。
+  - 批量同步弹窗（`BatchSyncModal`）与技能详情页的「批量安装」均支持远程目标，可与本地平台混合勾选。Rust 后端 `batch_install_skill` 遇到远程目标自动改走 SFTP：展开 `~` → 创建基础目录 → 删除远端旧 skill 目录 → 递归上传，行为与本地拷贝逻辑完全对齐。
+  - **密码安全存储**：SSH 密码保存在系统凭据管理器（Windows 凭据管理器 / macOS Keychain），不写入 `localStorage` 配置；删除远程目录时自动清理对应凭据。
+  - 密钥认证未指定私钥路径时，自动依次查找 `~/.ssh/id_ed25519`、`id_rsa`、`id_ecdsa`（暂不支持带 passphrase 保护的私钥）。
+  - 远程目录在设置页、批量同步弹窗及详情页均以服务器图标与 `user@host:port → 路径` 格式展示，与本地目录明显区分。
+
+### 优化
+- **设置页 Tab 重命名**: 侧边导航「设置 - Skill」更名为「设置 - Skill 存放目录」，与页面内标题保持一致，批量同步弹窗的跳转按钮文案同步更新。
+- **弹窗体验统一**: 「添加自定义目录」由浏览器原生 `window.prompt`（窗口置顶且标题显示 `localhost:5173`）改为与「添加远程目录」风格一致的居中应用内弹窗，支持回车确认、名称为空时禁用下一步；删除自定义目录的确认框改用 Tauri 原生 `ask` 对话框（标题显示应用名，纯浏览器开发环境自动回退 `window.confirm`）。
+
+### 后端新增命令
+- `test_ssh_connection`: 建立 SSH/SFTP 连接并验证远程路径，返回解析后的绝对路径与存在性提示。
+- `save_ssh_password` / `delete_ssh_password`: 通过系统凭据管理器存取、删除远程目标的 SSH 密码。
+
+### 新增文件
+- `src-tauri/src/ssh.rs`: 基于 `russh` + `russh-sftp`（纯 Rust，`ring` 加密后端，兼容 Windows 构建）实现 SSH 连接认证、`~` 路径展开、SFTP 递归上传/删除以及 keyring 密码管理。
+- `src/components/settings/RemoteDirectoryModal.tsx`: 远程目录的添加/编辑弹窗，含认证方式切换、私钥文件选择与连接测试。
+
+### 新增依赖
+- Rust: `russh`（ring 后端）、`russh-sftp`、`keyring`、`tokio`（io-util/net）。
+
 ## [0.2.9] - 2026-05-22
 
 ### 新增
@@ -16,7 +42,7 @@
 
 ### 优化
 - **Store.tsx**:
-  - 移除每个 skill 商店内嵌的「搜索 Skill...」搜索框（顶部 Header 已有全局搜索栏），精简页面布局。
+  - 移除每个 Skill 商店内嵌的「搜索 Skill...」搜索框（顶部 Header 已有全局搜索栏），精简页面布局。
   - 统一使用 `fetchStoreSkills` / `importSkillFromStoreRepo` 处理 GitHub 和 Gerrit 两种仓库类型的技能列表和导入。
 - **StoreSkillDetail.tsx**: 移除 Gerrit 仓库下不使用的 GitHub 外部链接按钮。
 - **Skill 卡片**: 移除 GitHub 仓库 skill 卡片的「在 GitHub 中查看」`ExternalLink` 按钮，避免与仓库级别的链接按钮重复。
@@ -53,7 +79,7 @@
 ### 新增
 - **Skill 商店功能**:
   - 新增完整的 Skill 商店模块，支持添加 GitHub 公开仓库作为 Skill 来源进行浏览和导入。
-  - **智能 Repo 结构检测**：自动检测两种常见的 skill 仓库结构——含 `skills/` 子目录的仓库（如 `anthropics/skills`）和根目录即 skill 文件夹的仓库（如 `JansonXIE/skills-test`），无需用户手动配置。
+  - **智能 Repo 结构检测**：自动检测两种常见的 Skill 商店结构——含 `skills/` 子目录的仓库（如 `anthropics/skills`）和根目录即 skill 文件夹的仓库（如 `JansonXIE/skills-test`），无需用户手动配置。
   - **侧边栏可展开商店导航**：将侧边栏「Skill 商店」改为可展开/折叠的分组导航，展开后列出所有已添加的商店仓库，每个仓库显示名称和 skill 数量徽章，支持悬停显示删除按钮。底部提供「+ 添加商店」快捷入口。
   - **添加商店弹窗**：新增 `AddStoreModal.tsx`，支持输入 GitHub 仓库 URL 后自动解析、检测结构并获取 skill 列表，带有加载状态和错误提示。
   - **商店页面**：重构 `Store.tsx`，展示选中仓库下的所有 skill 卡片，支持搜索过滤、一键导入到本地、在 GitHub 中查看等操作。skill 卡片采用渐变图标和来源标签区分商店来源。
@@ -192,9 +218,9 @@
 
 ### 优化
 - **代码仓库配置 (Repo Settings) UI 升级**:
-  - 重构了“设置 - skill 仓库”页面的添加仓库表单，采用大圆角卡片、左右布局以及输入框聚焦发光（呼吸灯焦点）动画，大幅提升视觉品质。
+  - 重构了“设置 - Skill 商店”页面的添加仓库表单，采用大圆角卡片、左右布局以及输入框聚焦发光（呼吸灯焦点）动画，大幅提升视觉品质。
   - 将删除仓库按钮更新为与“AI 模型”完全一致的 `.ai-icon-btn.ai-icon-btn-danger` 样式，支持常亮显示 and 精美的红灰色悬停反馈。
-  - 将“设置 - skill 仓库”的侧边导航图标由原有的 `Sparkles`（与 Skill 重复）修改为与技能分发一致的 `UploadCloud`（上传云）图标，使视觉语义更加准确。
+  - 将“设置 - Skill 商店”的侧边导航图标由原有的 `Sparkles`（与 Skill 重复）修改为与技能分发一致的 `UploadCloud`（上传云）图标，使视觉语义更加准确。
   - 修复了因为缺失 Tailwind 基础样式导致的多卡片列表重叠堆叠的 Bug，并优雅拉大了“添加仓库”按钮与列表项卡片之间的间距，保持界面通透美观。
   - 重构已添加仓库列表卡片的内部结构，全面采用 `settings-card-icon`、`settings-card-info`、`settings-card-title` 和 `settings-card-desc` 样式类，使仓库卡片的图标大小、文字大小、颜色、粗细及间距与“数据设置”下的“数据目录”卡片达成 100% 格式对齐。
 - **技能远程提交弹窗 (Upload Skill Modal) UI 重塑**:
@@ -202,7 +228,7 @@
   - 将表单字段改为优雅的左右横向布局，并将仓库下拉选择框重构为具备圆角聚焦阴影过渡动效的高级下拉控件。
   - 将取消和确认按钮移至右下角，使用与新仓库表单统一的大圆角、高级背景色 and 图标。
 - **全局设置页面标题与副标题格式对齐**:
-  - 重新调整了“设置 - skill 仓库”副标题与“设置 - AI 模型”面包屑文字的排版标记，全部统一为与“数据设置”中“数据目录”格式一致的 `<h3 className="settings-subtitle">`，实现高度统一 of the 系统层级与间距感。
+  - 重新调整了“设置 - Skill 商店”副标题与“设置 - AI 模型”面包屑文字的排版标记，全部统一为与“数据设置”中“数据目录”格式一致的 `<h3 className="settings-subtitle">`，实现高度统一 of the 系统层级与间距感。
 - **已分发页面 (Distributed) 卡片交互与样式精细化打磨**:
   - 移除了已分发页面中技能卡片的点击跳转逻辑，将鼠标悬浮状态设置为默认指针（`cursor: default`），符合已分发阶段“只读归档”的交互直觉。
   - 彻底重构了卡片底部已推送仓库信息的展示格式，修复了因 Tailwind 缺失导致无分割线的 Bug，引入了精致的上方浅灰分割线（`border-top: 1px solid #f1f5f9`）以及 `已分发至:` 醒目标记。
@@ -214,7 +240,7 @@
 
 ### 新增
 - **代码仓库配置 (Repo Settings)**:
-  - 在“设置”页面中新增了独立的“skill 仓库” (`RepoSettings.tsx`) 标签页。
+  - 在“设置”页面中新增了独立的“Skill 商店” (`RepoSettings.tsx`) 标签页。
   - 支持添加、查看和删除用于保存 skill 的远程 Git 仓库（如 GitHub、Gerrit 等），配置数据（仓库名称、Git 地址、默认分支）安全持久化至本地 `localStorage` 中。
 - **待分发与已分发技能管理**:
   - 重构侧边栏 (`Sidebar.tsx`) 中的“待分发”和“已分发”数量统计逻辑。通过在本地严格比对已配置的代码仓库推送记录（存储于 `skillhub-distributed`），自动精准得出本地待推送的技能数量。
