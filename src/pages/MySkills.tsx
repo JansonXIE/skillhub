@@ -19,6 +19,8 @@ export function MySkills() {
   const [isBatchMode, setIsBatchMode] = useState(false);
   const [selectedSkills, setSelectedSkills] = useState<Set<string>>(new Set());
   const [showSyncModal, setShowSyncModal] = useState(false);
+  // 单个技能「安装到平台」：非空时弹窗只同步该技能，而不是批量选中的技能
+  const [installSkillName, setInstallSkillName] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const toggleSelectSkill = (skillName: string) => {
@@ -381,7 +383,15 @@ export function MySkills() {
                 </div>
                 {!isBatchMode && (
                   <div className="skill-card-actions" onClick={(e) => e.stopPropagation()}>
-                    <button className="skill-action-btn" title="安装到平台">
+                    <button
+                      className="skill-action-btn"
+                      title="安装到平台"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setInstallSkillName(skill.name);
+                        setShowSyncModal(true);
+                      }}
+                    >
                       <Download size={14} />
                     </button>
                     <button 
@@ -413,13 +423,16 @@ export function MySkills() {
         </div>
       )}
 
-      <BatchSyncModal 
+      <BatchSyncModal
         isOpen={showSyncModal}
-        onClose={() => setShowSyncModal(false)}
-        selectedSkillNames={Array.from(selectedSkills)}
+        onClose={() => { setShowSyncModal(false); setInstallSkillName(null); }}
+        selectedSkillNames={installSkillName ? [installSkillName] : Array.from(selectedSkills)}
         onSyncComplete={() => {
-          setSelectedSkills(new Set());
-          setIsBatchMode(false);
+          if (!installSkillName) {
+            setSelectedSkills(new Set());
+            setIsBatchMode(false);
+          }
+          setInstallSkillName(null);
           window.dispatchEvent(new CustomEvent('skills-updated'));
         }}
       />

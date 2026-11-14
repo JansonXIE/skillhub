@@ -4,6 +4,7 @@ import { CheckSquare, RefreshCw, Star, Trash2, Download } from 'lucide-react';
 import { EmptyState } from '../components/EmptyState';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
+import { BatchSyncModal } from '../components/modals/BatchSyncModal';
 
 interface SkillInfo {
   name: string;
@@ -13,6 +14,7 @@ interface SkillInfo {
 export function Favorites() {
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [installSkillName, setInstallSkillName] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const fetchFavorites = async () => {
@@ -178,7 +180,15 @@ export function Favorites() {
                   {skill.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="skill-card-actions" onClick={(e) => e.stopPropagation()}>
-                  <button className="skill-action-btn focus:outline-none" title="安装到平台" style={{ outline: 'none' }}>
+                  <button
+                    className="skill-action-btn focus:outline-none"
+                    title="安装到平台"
+                    style={{ outline: 'none' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInstallSkillName(skill.name);
+                    }}
+                  >
                     <Download size={14} />
                   </button>
                   <button 
@@ -209,6 +219,13 @@ export function Favorites() {
           ))}
         </div>
       )}
+
+      <BatchSyncModal
+        isOpen={installSkillName !== null}
+        onClose={() => setInstallSkillName(null)}
+        selectedSkillNames={installSkillName ? [installSkillName] : []}
+        onSyncComplete={() => setInstallSkillName(null)}
+      />
     </div>
   );
 }
