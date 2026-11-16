@@ -77,6 +77,25 @@ async fn clone_github_repo(url: String, base_path: String) -> Result<String, Str
     Ok(format!("Successfully cloned {} to {}", repo_name, dest_path.display()))
 }
 
+/// Extract a skill description from SKILL.md content: prefer a `description:` line,
+/// otherwise fall back to the first non-empty, non-heading line.
+pub(crate) fn extract_description(content: &str) -> Option<String> {
+    for line in content.lines() {
+        if let Some(desc) = line.strip_prefix("description:") {
+            return Some(desc.trim().to_string());
+        } else if let Some(desc) = line.strip_prefix("description：") { // handle chinese colon
+            return Some(desc.trim().to_string());
+        }
+    }
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if !trimmed.is_empty() && !trimmed.starts_with('#') {
+            return Some(trimmed.to_string());
+        }
+    }
+    None
+}
+
 #[tauri::command]
 async fn get_local_skills(data_path: String) -> Result<Vec<SkillInfo>, String> {
     let skills_dir = Path::new(&data_path).join("my_skills");
@@ -88,33 +107,12 @@ async fn get_local_skills(data_path: String) -> Result<Vec<SkillInfo>, String> {
                 if let Ok(file_type) = entry.file_type() {
                     if file_type.is_dir() {
                         let name = entry.file_name().into_string().unwrap_or_default();
-                        
-                        // Try to read description from SKILL.md
-                        let mut description = None;
+
                         let skill_md_path = entry.path().join("SKILL.md");
-                        if let Ok(content) = fs::read_to_string(&skill_md_path) {
-                            for line in content.lines() {
-                                if let Some(desc) = line.strip_prefix("description:") {
-                                    description = Some(desc.trim().to_string());
-                                    break;
-                                } else if let Some(desc) = line.strip_prefix("description：") { // handle chinese colon
-                                    description = Some(desc.trim().to_string());
-                                    break;
-                                }
-                            }
-                            
-                            // If no "description:" found, maybe just take the first non-empty line
-                            if description.is_none() {
-                                for line in content.lines() {
-                                    let trimmed = line.trim();
-                                    if !trimmed.is_empty() && !trimmed.starts_with('#') {
-                                        description = Some(trimmed.to_string());
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        
+                        let description = fs::read_to_string(&skill_md_path)
+                            .ok()
+                            .and_then(|content| extract_description(&content));
+
                         skills.push(SkillInfo {
                             name,
                             description,
@@ -124,8 +122,8 @@ async fn get_local_skills(data_path: String) -> Result<Vec<SkillInfo>, String> {
             }
         }
     }
-    
-    
+
+
     Ok(skills)
 }
 
@@ -874,7 +872,8 @@ pub fn run() {
         fetch_store_skills, fetch_store_skill_content,
         fetch_store_skill_contents_batch,
         fetch_store_skill_file_tree, import_skill_from_store,
-        ssh::save_ssh_password, ssh::delete_ssh_password, ssh::test_ssh_connection
+        ssh::save_ssh_password, ssh::delete_ssh_password, ssh::test_ssh_connection,
+        ssh::list_remote_skills, ssh::import_remote_skill
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {

@@ -9,6 +9,7 @@ import { StoreSkillDetail } from './pages/StoreSkillDetail';
 import { Resources } from './pages/Resources';
 import { Settings } from './pages/Settings';
 import { SkillDetail } from './pages/SkillDetail';
+import { RemoteSkills } from './pages/RemoteSkills';
 import './App.css';
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
           <Route path="resources" element={<Resources />} />
           <Route path="settings" element={<Settings />} />
           <Route path="skill/:skillName" element={<SkillDetail />} />
+          <Route path="remote-skills/:platformId" element={<RemoteSkills />} />
         </Route>
       </Routes>
     </Router>

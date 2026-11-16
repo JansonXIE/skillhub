@@ -111,17 +111,30 @@ export function formatRemoteTarget(remote: RemoteConfig): string {
  return `${remote.username}@${remote.host}:${remote.port} → ${remote.remotePath}`;
 }
 
-// Payload shape expected by the Rust `batch_install_skill` command (snake_case fields)
-export interface InstallTargetPayload {
- platform_id: string;
- target_path: string;
- remote?: {
+// Connection info shape expected by Rust SSH commands (snake_case fields)
+export interface RemotePayload {
  host: string;
  port: number;
  username: string;
  auth_method: string;
  private_key_path: string | null;
+}
+
+export function remoteToPayload(remote: RemoteConfig): RemotePayload {
+ return {
+ host: remote.host,
+ port: remote.port,
+ username: remote.username,
+ auth_method: remote.authMethod,
+ private_key_path: remote.privateKeyPath ?? null
  };
+}
+
+// Payload shape expected by the Rust `batch_install_skill` command (snake_case fields)
+export interface InstallTargetPayload {
+ platform_id: string;
+ target_path: string;
+ remote?: RemotePayload;
 }
 
 export function buildInstallTarget(
@@ -134,13 +147,7 @@ export function buildInstallTarget(
  return {
  platform_id: platform.id,
  target_path: platform.remote.remotePath,
- remote: {
- host: platform.remote.host,
- port: platform.remote.port,
- username: platform.remote.username,
- auth_method: platform.remote.authMethod,
- private_key_path: platform.remote.privateKeyPath ?? null
- }
+ remote: remoteToPayload(platform.remote)
  };
  }
 

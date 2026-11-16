@@ -35,6 +35,8 @@ export function SkillSettings() {
  setSettings(prev => {
  const next = normalizeUserPlatformSettings(updater(prev));
  localStorage.setItem('skillhub-platforms-config', JSON.stringify(next));
+ // 通知侧边栏等处刷新远程目录子菜单
+ window.dispatchEvent(new CustomEvent('platforms-updated'));
  return next;
  });
  };

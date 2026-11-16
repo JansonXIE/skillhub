@@ -5,8 +5,8 @@ use std::sync::Arc;
 use russh::client;
 use russh::keys::{load_secret_key, PrivateKeyWithHashAlg};
 use russh_sftp::client::SftpSession;
-use serde::Deserialize;
-use tokio::io::AsyncWriteExt;
+use serde::{Deserialize, Serialize};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[derive(Deserialize, Clone)]
 pub struct RemoteInfo {
@@ -356,6 +356,145 @@ pub async fn delete_ssh_password(host: String, port: u16, username: String) -> R
         Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
         Err(e) => Err(format!("Failed to delete saved password: {}", e)),
     }
+}
+
+#[derive(Serialize)]
+pub struct RemoteSkillInfo {
+    pub name: String,
+    pub description: Option<String>,
+}
+
+async fn read_remote_file_bytes(sftp: &SftpSession, path: &str) -> Option<Vec<u8>> {
+    let mut file = sftp.open(path).await.ok()?;
+    let mut buf = Vec::new();
+    file.read_to_end(&mut buf).await.ok()?;
+    Some(buf)
+}
+
+async fn read_remote_file(sftp: &SftpSession, path: &str) -> Option<String> {
+    let buf = read_remote_file_bytes(sftp, path).await?;
+    Some(String::from_utf8_lossy(&buf).to_string())
+}
+
+/// Recursively download a remote directory to a local path (iterative walk,
+/// avoids async recursion).
+async fn download_dir(
+    sftp: &SftpSession,
+    remote_dir: &str,
+    local_dir: &Path,
+) -> Result<(), String> {
+    let mut pending = vec![(remote_dir.to_string(), local_dir.to_path_buf())];
+
+    while let Some((rdir, ldir)) = pending.pop() {
+        fs::create_dir_all(&ldir)
+            .map_err(|e| format!("Failed to create local directory {}: {}", ldir.display(), e))?;
+
+        let entries = sftp
+            .read_dir(&rdir)
+            .await
+            .map_err(|e| format!("Failed to read remote directory {}: {}", rdir, e))?;
+
+        for entry in entries {
+            let name = entry.file_name();
+            if name == "." || name == ".." {
+                continue;
+            }
+            let rchild = format!("{}/{}", rdir.trim_end_matches('/'), name);
+            let lchild = ldir.join(&name);
+            if entry.file_type().is_dir() {
+                pending.push((rchild, lchild));
+            } else {
+                let content = read_remote_file_bytes(sftp, &rchild)
+                    .await
+                    .ok_or_else(|| format!("Failed to read remote file {}", rchild))?;
+                fs::write(&lchild, content)
+                    .map_err(|e| format!("Failed to write local file {}: {}", lchild.display(), e))?;
+            }
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn import_remote_skill(
+    data_path: String,
+    remote: RemoteInfo,
+    remote_path: String,
+    skill_name: String,
+) -> Result<String, String> {
+    let skills_dir = Path::new(&data_path).join("my_skills");
+    let dest = skills_dir.join(&skill_name);
+    if dest.exists() {
+        return Err(format!("Skill '{}' already exists in my_skills directory.", skill_name));
+    }
+    fs::create_dir_all(&skills_dir)
+        .map_err(|e| format!("Failed to create skills directory: {}", e))?;
+
+    let (session, sftp) = connect_sftp(&remote, None).await?;
+
+    let result = async {
+        let base = expand_remote_path(&sftp, &remote_path).await?;
+        let src = format!("{}/{}", base.trim_end_matches('/'), skill_name);
+        if !remote_exists(&sftp, &src).await {
+            return Err(format!("Remote skill directory does not exist: {}", src));
+        }
+        download_dir(&sftp, &src, &dest).await
+    }
+    .await;
+
+    close_connection(session, sftp).await;
+
+    match result {
+        Ok(()) => Ok(format!("Successfully imported skill {}", skill_name)),
+        Err(e) => {
+            // Clean up a partially downloaded skill so a retry starts fresh
+            let _ = fs::remove_dir_all(&dest);
+            Err(e)
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn list_remote_skills(
+    remote: RemoteInfo,
+    remote_path: String,
+) -> Result<Vec<RemoteSkillInfo>, String> {
+    let (session, sftp) = connect_sftp(&remote, None).await?;
+
+    let result = async {
+        let base = expand_remote_path(&sftp, &remote_path).await?;
+        if !remote_exists(&sftp, &base).await {
+            // Directory not created yet — report as empty rather than erroring
+            return Ok(Vec::new());
+        }
+
+        let entries = sftp
+            .read_dir(&base)
+            .await
+            .map_err(|e| format!("Failed to read remote directory {}: {}", base, e))?;
+
+        let mut skills = Vec::new();
+        for entry in entries {
+            let name = entry.file_name();
+            if name == "." || name == ".." || name.starts_with('.') {
+                continue;
+            }
+            if !entry.file_type().is_dir() {
+                continue;
+            }
+            let md_path = format!("{}/{}/SKILL.md", base.trim_end_matches('/'), name);
+            let description = read_remote_file(&sftp, &md_path)
+                .await
+                .and_then(|content| crate::extract_description(&content));
+            skills.push(RemoteSkillInfo { name, description });
+        }
+        skills.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(skills)
+    }
+    .await;
+
+    close_connection(session, sftp).await;
+    result
 }
 
 #[tauri::command]

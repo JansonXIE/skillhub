@@ -24,7 +24,7 @@ const GithubIconSvg = ({ size = 18 }: { size?: number }) => (
 );
 
 const SETTINGS_TABS = [
-  { id: 'data', name: '数据设置', icon: Database },
+  { id: 'data', name: '我的 Skills', icon: Database },
   { id: 'ai', name: 'AI 模型', icon: Cpu },
   { id: 'skill', name: 'Skill 存放目录', icon: Sparkles },
   { id: 'repo', name: 'Skill 商店', icon: UploadCloud },
@@ -129,7 +129,7 @@ export function Settings() {
       <div className="settings-content-area">
         {activeTab === 'data' && (
           <div className="settings-section fade-in">
-            <h2 className="settings-title">数据设置</h2>
+            <h2 className="settings-title">我的 Skills</h2>
             
             <div className="settings-group">
               <h3 className="settings-subtitle">数据目录</h3>

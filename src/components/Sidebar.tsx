@@ -6,13 +6,14 @@ import { appDataDir, join } from '@tauri-apps/api/path';
 import { AddStoreModal } from './modals/AddStoreModal';
 import type { StoreRepo } from '../types/store';
 import { loadStoreReposWithMigration, writeStoreRepos } from '../utils/storeRepo';
+import { formatRemoteTarget, normalizeUserPlatformSettings, type PlatformConfig } from '../config/platforms';
 
 interface SkillInfo {
   name: string;
 }
 
+// 「我的 Skills」单独渲染（带远程目录子菜单），这里只放其余导航项
 const NAV_ITEMS = [
-  { name: '我的 Skills', icon: Box, path: '/' },
   { name: '收藏', icon: Star, path: '/favorites' },
   { name: '已分发', icon: Globe, path: '/distributed' },
   { name: '待分发', icon: Clock, path: '/pending' },
@@ -31,6 +32,8 @@ export function Sidebar() {
   const [storeExpanded, setStoreExpanded] = useState(true);
   const [storeRepos, setStoreRepos] = useState<StoreRepo[]>([]);
   const [showAddStore, setShowAddStore] = useState(false);
+  const [mySkillsExpanded, setMySkillsExpanded] = useState(true);
+  const [remoteDirs, setRemoteDirs] = useState<PlatformConfig[]>([]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -72,6 +75,21 @@ export function Sidebar() {
  setStoreRepos(loadStoreReposWithMigration());
  };
 
+  const loadRemoteDirs = () => {
+    try {
+      const stored = localStorage.getItem('skillhub-platforms-config');
+      if (!stored) {
+        setRemoteDirs([]);
+        return;
+      }
+      const settings = normalizeUserPlatformSettings(JSON.parse(stored));
+      setRemoteDirs(settings.customPlatforms.filter(p => p.remote));
+    } catch (e) {
+      console.error('Failed to parse platform settings', e);
+      setRemoteDirs([]);
+    }
+  };
+
   const handleDeleteStoreRepo = (e: React.MouseEvent, repoId: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -87,15 +105,18 @@ export function Sidebar() {
   useEffect(() => {
     fetchSkillsCount();
     loadStoreRepos();
+    loadRemoteDirs();
     window.addEventListener('skills-updated', fetchSkillsCount);
     window.addEventListener('favorites-updated', fetchSkillsCount);
     window.addEventListener('distributed-updated', fetchSkillsCount);
     window.addEventListener('store-repos-updated', loadStoreRepos);
+    window.addEventListener('platforms-updated', loadRemoteDirs);
     return () => {
       window.removeEventListener('skills-updated', fetchSkillsCount);
       window.removeEventListener('favorites-updated', fetchSkillsCount);
       window.removeEventListener('distributed-updated', fetchSkillsCount);
       window.removeEventListener('store-repos-updated', loadStoreRepos);
+      window.removeEventListener('platforms-updated', loadRemoteDirs);
     };
   }, []);
 
@@ -106,6 +127,57 @@ export function Sidebar() {
       </div>
 
       <nav className="nav-section">
+        {/* 我的 Skills - 带远程目录子菜单 */}
+        <div className="store-nav-group">
+          <NavLink
+            to="/"
+            className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+          >
+            <Box size={18} />
+            <span>我的 Skills</span>
+            <span className="badge">{mySkillsCount}</span>
+            {remoteDirs.length > 0 && (
+              <ChevronDown
+                size={14}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setMySkillsExpanded(!mySkillsExpanded);
+                }}
+                style={{
+                  transition: 'transform 0.2s ease',
+                  transform: mySkillsExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
+                  opacity: 0.6,
+                  flexShrink: 0,
+                }}
+              />
+            )}
+          </NavLink>
+
+          {mySkillsExpanded && remoteDirs.length > 0 && (
+            <div className="store-nav-subitems">
+              {remoteDirs.map((dir) => {
+                const isActive = location.pathname === `/remote-skills/${dir.id}`;
+                return (
+                  <NavLink
+                    key={dir.id}
+                    to={`/remote-skills/${dir.id}`}
+                    className={`store-sub-item ${isActive ? 'active' : ''}`}
+                  >
+                    <Server size={14} />
+                    <span
+                      className="store-sub-name"
+                      title={dir.remote ? formatRemoteTarget(dir.remote) : dir.name}
+                    >
+                      {dir.name}
+                    </span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           return (
@@ -116,9 +188,6 @@ export function Sidebar() {
             >
               <Icon size={18} />
               <span>{item.name}</span>
-              {item.name === '我的 Skills' && (
-                <span className="badge">{mySkillsCount}</span>
-              )}
               {item.name === '收藏' && (
                 <span className="badge">{favoritesCount}</span>
               )}
