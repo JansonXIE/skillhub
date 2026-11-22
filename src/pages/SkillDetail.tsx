@@ -3,10 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import {
- ArrowLeft, ShieldCheck, Globe, CheckSquare, Download, LayoutGrid, Star, Folder, Server
+ ArrowLeft, ShieldCheck, CheckSquare, Download, LayoutGrid, Star, Folder, Server
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { AITranslationModal } from '../components/modals/AITranslationModal';
+import { SkillTranslateButton } from '../components/SkillTranslateButton';
+import { useSkillTranslation } from '../hooks/useSkillTranslation';
 import { DEFAULT_USER_SETTINGS, buildInstallTarget, getAllPlatforms, normalizeUserPlatformSettings, type InstallTargetPayload, type PlatformConfig, type UserPlatformSettings } from '../config/platforms';
 
 export function SkillDetail() {
@@ -19,7 +20,6 @@ export function SkillDetail() {
 
  const [platformSettings, setPlatformSettings] = useState<UserPlatformSettings>(DEFAULT_USER_SETTINGS);
  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(new Set());
- const [showTranslate, setShowTranslate] = useState(false);
  const [copiedMD, setCopiedMD] = useState(false);
  const [installing, setInstalling] = useState(false);
  const [isFavorite, setIsFavorite] = useState(false);
@@ -87,6 +87,11 @@ export function SkillDetail() {
  }
  return trimmed;
  }, [content]);
+
+ const translation = useSkillTranslation(description, filteredContent);
+ const isTranslatingNow = translation.status === 'translating';
+ const shownDescription = translation.showTranslated ? translation.translatedDescription : description;
+ const shownContent = translation.showTranslated ? translation.translatedContent : filteredContent;
 
  const handleCopyMD = () => {
  navigator.clipboard.writeText(filteredContent);
@@ -302,6 +307,7 @@ export function SkillDetail() {
  <span className="flex items-center gap-2"><LayoutGrid size={16} />预览</span>
  </div>
  </div>
+ <SkillTranslateButton translation={translation} disabled={loading || (!description && !filteredContent)} />
  </div>
  </div>
 
@@ -314,22 +320,22 @@ export function SkillDetail() {
  {/* Left Column: Preview */}
  <div className="preview-section flex flex-col gap-6 overflow-y-auto pr-4 pb-8">
  <div>
- <h3 className="text-sm font-medium text-secondary mb-3">技能描述</h3>
+ <h3 className="text-sm font-medium text-secondary mb-3 flex items-center gap-2">
+ 技能描述
+ {translation.showTranslated && <span className="ai-tag ai-tag-highlight">AI 译文</span>}
+ </h3>
  <div className="info-box bg-surface text-main markdown-body">
- <p>{description}</p>
+ <p>{shownDescription || (isTranslatingNow ? 'AI 正在翻译中...' : '')}</p>
  </div>
  </div>
 
  <div>
  <div className="flex items-center justify-between mb-3">
- <h3 className="text-sm font-medium text-secondary">技能内容</h3>
+ <h3 className="text-sm font-medium text-secondary flex items-center gap-2">
+ 技能内容
+ {translation.showTranslated && <span className="ai-tag ai-tag-highlight">AI 译文</span>}
+ </h3>
  <div className="flex items-center gap-2">
- <button
- className="skill-action-btn text-sm flex items-center gap-1 px-2 w-auto h-auto"
- onClick={() => setShowTranslate(true)}
- >
- <Globe size={14}/> AI 翻译
- </button>
  <button
  className={`skill-action-btn text-sm flex items-center gap-1 px-2 w-auto h-auto ${copiedMD ? 'text-primary' : ''}`}
  onClick={handleCopyMD}
@@ -340,7 +346,7 @@ export function SkillDetail() {
  </div>
  </div>
  <div className="info-box bg-surface markdown-body">
- <ReactMarkdown>{filteredContent}</ReactMarkdown>
+ <ReactMarkdown>{shownContent || (isTranslatingNow ? 'AI 正在翻译中...' : '')}</ReactMarkdown>
  </div>
  </div>
  </div>
@@ -406,13 +412,6 @@ export function SkillDetail() {
  </div>
  )}
  </div>
-
- {/* AI Translation Modal */}
- <AITranslationModal
- isOpen={showTranslate}
- onClose={() => setShowTranslate(false)}
- sourceContent={filteredContent}
- />
  </div>
  );
 }

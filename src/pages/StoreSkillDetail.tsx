@@ -7,6 +7,8 @@ import ReactMarkdown from 'react-markdown';
 import { fetchSkillContent, extractDescription } from '../utils/github';
 import { fetchStoreSkillContent, importSkillFromStoreRepo } from '../utils/storeRepo';
 import type { StoreRepo } from '../types/store';
+import { SkillTranslateButton } from '../components/SkillTranslateButton';
+import { useSkillTranslation } from '../hooks/useSkillTranslation';
 
 export function StoreSkillDetail() {
   const { owner, repo, skillName } = useParams<{
@@ -48,6 +50,11 @@ export function StoreSkillDetail() {
     }
     return trimmed;
   }, [content]);
+
+  const translation = useSkillTranslation(description, filteredContent);
+  const isTranslatingNow = translation.status === 'translating';
+  const shownDescription = translation.showTranslated ? translation.translatedDescription : description;
+  const shownContent = translation.showTranslated ? translation.translatedContent : filteredContent;
 
   useEffect(() => {
     if (!owner || !repo || !skillName) return;
@@ -162,6 +169,7 @@ export function StoreSkillDetail() {
               <span className="flex items-center gap-2"><LayoutGrid size={16} /> 预览</span>
             </div>
           </div>
+          <SkillTranslateButton translation={translation} disabled={loading || !filteredContent} />
         </div>
       </div>
 
@@ -184,16 +192,24 @@ export function StoreSkillDetail() {
           <div className="skill-detail-layout h-full" style={{ gridTemplateColumns: '1fr' }}>
             <div className="preview-section flex flex-col gap-6 overflow-y-auto pr-4 pb-8">
               <div>
-                <h3 className="text-sm font-medium text-secondary mb-3">技能描述</h3>
+                <h3 className="text-sm font-medium text-secondary mb-3 flex items-center gap-2">
+                  技能描述
+                  {translation.showTranslated && <span className="ai-tag ai-tag-highlight">AI 译文</span>}
+                </h3>
                 <div className="info-box bg-surface text-main markdown-body">
-                  <p>{description}</p>
+                  <p>{shownDescription || (isTranslatingNow ? 'AI 正在翻译中...' : '')}</p>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-secondary mb-3">技能内容</h3>
+                <h3 className="text-sm font-medium text-secondary mb-3 flex items-center gap-2">
+                  技能内容
+                  {translation.showTranslated && <span className="ai-tag ai-tag-highlight">AI 译文</span>}
+                </h3>
                 <div className="info-box bg-surface markdown-body">
-                  <ReactMarkdown>{filteredContent || '暂无内容'}</ReactMarkdown>
+                  <ReactMarkdown>
+                    {shownContent || (isTranslatingNow ? 'AI 正在翻译中...' : '暂无内容')}
+                  </ReactMarkdown>
                 </div>
               </div>
             </div>
