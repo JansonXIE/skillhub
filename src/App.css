@@ -1800,6 +1800,35 @@ input:focus,
   line-height: 1.7;
 }
 
+.markdown-body table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  border-spacing: 0;
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--border-color);
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-body th {
+  font-weight: 600;
+  color: var(--text-main);
+  background-color: var(--border-light);
+}
+
+.markdown-body tr:nth-child(even) td {
+  background-color: rgba(148, 163, 184, 0.06);
+}
+
 .info-box {
   background-color: var(--bg-surface);
   border: 1px solid var(--border-color);

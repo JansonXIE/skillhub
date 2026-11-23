@@ -4,6 +4,7 @@ import {
   ArrowLeft, Download, Loader2, Package, LayoutGrid
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { fetchSkillContent, extractDescription } from '../utils/github';
 import { fetchStoreSkillContent, importSkillFromStoreRepo } from '../utils/storeRepo';
 import type { StoreRepo } from '../types/store';
@@ -207,7 +208,7 @@ export function StoreSkillDetail() {
                   {translation.showTranslated && <span className="ai-tag ai-tag-highlight">AI 译文</span>}
                 </h3>
                 <div className="info-box bg-surface markdown-body">
-                  <ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {shownContent || (isTranslatingNow ? 'AI 正在翻译中...' : '暂无内容')}
                   </ReactMarkdown>
                 </div>

@@ -6,6 +6,7 @@ import {
  ArrowLeft, ShieldCheck, CheckSquare, Download, LayoutGrid, Star, Folder, Server
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { SkillTranslateButton } from '../components/SkillTranslateButton';
 import { useSkillTranslation } from '../hooks/useSkillTranslation';
 import { DEFAULT_USER_SETTINGS, buildInstallTarget, getAllPlatforms, normalizeUserPlatformSettings, type InstallTargetPayload, type PlatformConfig, type UserPlatformSettings } from '../config/platforms';
@@ -346,7 +347,7 @@ export function SkillDetail() {
  </div>
  </div>
  <div className="info-box bg-surface markdown-body">
- <ReactMarkdown>{shownContent || (isTranslatingNow ? 'AI 正在翻译中...' : '')}</ReactMarkdown>
+ <ReactMarkdown remarkPlugins={[remarkGfm]}>{shownContent || (isTranslatingNow ? 'AI 正在翻译中...' : '')}</ReactMarkdown>
  </div>
  </div>
  </div>
