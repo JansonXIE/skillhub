@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Server, RefreshCw, AlertCircle, Loader2, Download } from 'lucide-react';
+import { Server, RefreshCw, AlertCircle, Loader2, Download, Trash2 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { EmptyState } from '../components/EmptyState';
@@ -36,6 +36,7 @@ export function RemoteSkills() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [importing, setImporting] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState<Set<string>>(new Set());
 
   const fetchRemoteSkills = async (target: PlatformConfig) => {
     if (!target.remote) return;
@@ -90,6 +91,37 @@ export function RemoteSkills() {
       alert(`导入失败: ${err}`);
     } finally {
       setImporting(prev => {
+        const next = new Set(prev);
+        next.delete(skillName);
+        return next;
+      });
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, skillName: string) => {
+    e.stopPropagation();
+    if (!platform?.remote || deleting.has(skillName)) return;
+
+    const confirmed = window.confirm(
+      `确定要从服务器 ${platform.remote.host} 删除技能「${skillName}」吗？此操作不可逆，服务器上的该目录会被整个删除。`
+    );
+    if (!confirmed) return;
+
+    setDeleting(prev => new Set(prev).add(skillName));
+    try {
+      await invoke<string>('delete_remote_skill', {
+        remote: remoteToPayload(platform.remote),
+        remotePath: platform.remote.remotePath,
+        skillName,
+      });
+
+      setSkills(prev => prev.filter(s => s.name !== skillName));
+      window.dispatchEvent(new CustomEvent('skills-updated'));
+      alert(`已从服务器删除「${skillName}」。`);
+    } catch (err) {
+      alert(`删除失败: ${err}`);
+    } finally {
+      setDeleting(prev => {
         const next = new Set(prev);
         next.delete(skillName);
         return next;
@@ -187,6 +219,17 @@ export function RemoteSkills() {
                     {importing.has(skill.name)
                       ? <Loader2 size={14} className="animate-spin" />
                       : <Download size={14} />}
+                  </button>
+                  <button
+                    className="skill-action-btn focus:outline-none"
+                    title="从服务器删除"
+                    style={{ outline: 'none' }}
+                    disabled={deleting.has(skill.name)}
+                    onClick={(e) => handleDelete(e, skill.name)}
+                  >
+                    {deleting.has(skill.name)
+                      ? <Loader2 size={14} className="animate-spin" />
+                      : <Trash2 size={14} />}
                   </button>
                 </div>
               </div>

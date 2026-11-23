@@ -454,6 +454,46 @@ pub async fn import_remote_skill(
     }
 }
 
+/// Guard against a skill name that would escape the skills base directory.
+fn validate_skill_name(skill_name: &str) -> Result<(), String> {
+    let trimmed = skill_name.trim();
+    if trimmed.is_empty() {
+        return Err("Skill name is empty".to_string());
+    }
+    if trimmed == "." || trimmed == ".." || trimmed.starts_with('.') {
+        return Err(format!("Invalid skill name: {}", skill_name));
+    }
+    if trimmed.contains('/') || trimmed.contains('\\') {
+        return Err(format!("Invalid skill name: {}", skill_name));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_remote_skill(
+    remote: RemoteInfo,
+    remote_path: String,
+    skill_name: String,
+) -> Result<String, String> {
+    validate_skill_name(&skill_name)?;
+
+    let (session, sftp) = connect_sftp(&remote, None).await?;
+
+    let result = async {
+        let base = expand_remote_path(&sftp, &remote_path).await?;
+        let target = format!("{}/{}", base.trim_end_matches('/'), skill_name);
+        if !remote_exists(&sftp, &target).await {
+            return Err(format!("Remote skill directory does not exist: {}", target));
+        }
+        remote_remove_dir_all(&sftp, &target).await?;
+        Ok(format!("Successfully deleted remote skill {}", skill_name))
+    }
+    .await;
+
+    close_connection(session, sftp).await;
+    result
+}
+
 #[tauri::command]
 pub async fn list_remote_skills(
     remote: RemoteInfo,

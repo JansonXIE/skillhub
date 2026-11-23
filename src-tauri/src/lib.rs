@@ -873,7 +873,8 @@ pub fn run() {
         fetch_store_skill_contents_batch,
         fetch_store_skill_file_tree, import_skill_from_store,
         ssh::save_ssh_password, ssh::delete_ssh_password, ssh::test_ssh_connection,
-        ssh::list_remote_skills, ssh::import_remote_skill
+        ssh::list_remote_skills, ssh::import_remote_skill,
+        ssh::delete_remote_skill
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {
