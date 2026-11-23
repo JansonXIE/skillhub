@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use serde::{Serialize, Deserialize};
 
 mod ssh;
+mod sync;
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -144,7 +145,7 @@ async fn get_skill_detail(data_path: String, skill_name: String) -> Result<Strin
     }
 }
 
-fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
+pub(crate) fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
     fs::create_dir_all(&dst)?;
     for entry in fs::read_dir(src)? {
         let entry = entry?;
@@ -232,6 +233,9 @@ async fn delete_local_skill(data_path: String, skill_name: String) -> Result<Str
         return Err(format!("Failed to delete skill directory: {}", e));
     }
 
+    // Drop baselines too, otherwise a re-created skill would inherit them.
+    sync::forget_skill(&data_path, &skill_name);
+
     Ok(format!("Successfully deleted skill {}", skill_name))
 }
 
@@ -246,11 +250,20 @@ fn expand_env_vars(path: &str) -> String {
 }
 
 #[tauri::command]
-async fn batch_install_skill(data_path: String, skill_name: String, targets: Vec<InstallTarget>) -> Result<String, String> {
+async fn batch_install_skill(
+    data_path: String,
+    skill_name: String,
+    targets: Vec<InstallTarget>,
+    force: bool,
+) -> Result<String, String> {
     let source_dir = Path::new(&data_path).join("my_skills").join(&skill_name);
     if !source_dir.exists() {
         return Err(format!("Source skill directory does not exist: {}", source_dir.display()));
     }
+
+    // Fingerprint once: it is both the drift baseline we compare against on
+    // the next push and the value we record after a successful one.
+    let local_hash = sync::hash_local_dir(&source_dir)?;
 
     let mut success_count = 0;
     let mut errors = Vec::new();
@@ -258,8 +271,30 @@ async fn batch_install_skill(data_path: String, skill_name: String, targets: Vec
     for target in targets {
         // Remote targets go over SFTP instead of the local filesystem
         if let Some(remote) = &target.remote {
-            match ssh::install_skill_to_remote(remote, &target.target_path, &skill_name, &source_dir).await {
-                Ok(_) => success_count += 1,
+            let baseline = sync::load_state(&data_path)
+                .get(&skill_name)
+                .and_then(|platforms| platforms.get(&target.platform_id))
+                .map(|b| b.hash.clone());
+
+            match ssh::install_skill_to_remote(
+                remote,
+                &target.target_path,
+                &skill_name,
+                &source_dir,
+                baseline.as_deref(),
+                force,
+            )
+            .await
+            {
+                Ok(_) => {
+                    let _ = sync::record_baseline(
+                        &data_path,
+                        &skill_name,
+                        &target.platform_id,
+                        &local_hash,
+                    );
+                    success_count += 1;
+                }
                 Err(e) => errors.push(format!("{}: {}", target.platform_id, e)),
             }
             continue;
@@ -874,7 +909,8 @@ pub fn run() {
         fetch_store_skill_file_tree, import_skill_from_store,
         ssh::save_ssh_password, ssh::delete_ssh_password, ssh::test_ssh_connection,
         ssh::list_remote_skills, ssh::import_remote_skill,
-        ssh::delete_remote_skill
+        ssh::delete_remote_skill, ssh::get_remote_sync_overview,
+        ssh::check_push_drift
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {

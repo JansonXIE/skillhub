@@ -315,11 +315,19 @@ pub async fn upload_dir(
     Ok(())
 }
 
+/// Push a local skill directory to a remote base directory.
+///
+/// When `baseline_hash` is known and `force` is false, the server copy is
+/// fingerprinted first: if it no longer matches what we last synced, someone
+/// edited the skill directly on the server and overwriting would destroy that
+/// work — so we refuse instead.
 pub async fn install_skill_to_remote(
     remote: &RemoteInfo,
     target_base: &str,
     skill_name: &str,
     source_dir: &Path,
+    baseline_hash: Option<&str>,
+    force: bool,
 ) -> Result<(), String> {
     let (session, sftp) = connect_sftp(remote, None).await?;
 
@@ -327,6 +335,21 @@ pub async fn install_skill_to_remote(
         let base = expand_remote_path(&sftp, target_base).await?;
         remote_create_dir_all(&sftp, &base).await?;
         let dest = format!("{}/{}", base.trim_end_matches('/'), skill_name);
+
+        if !force {
+            if let Some(expected) = baseline_hash {
+                if remote_exists(&sftp, &dest).await {
+                    let current = crate::sync::hash_remote_dir(&sftp, &dest).await?;
+                    if current != expected {
+                        return Err(format!(
+                            "服务器上的「{}」自上次同步后已被修改，继续推送会覆盖这些改动",
+                            dest
+                        ));
+                    }
+                }
+            }
+        }
+
         remote_remove_dir_all(&sftp, &dest).await?;
         upload_dir(&sftp, source_dir, &dest).await
     }
@@ -364,7 +387,7 @@ pub struct RemoteSkillInfo {
     pub description: Option<String>,
 }
 
-async fn read_remote_file_bytes(sftp: &SftpSession, path: &str) -> Option<Vec<u8>> {
+pub(crate) async fn read_remote_file_bytes(sftp: &SftpSession, path: &str) -> Option<Vec<u8>> {
     let mut file = sftp.open(path).await.ok()?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf).await.ok()?;
@@ -415,20 +438,55 @@ async fn download_dir(
     Ok(())
 }
 
+#[derive(Serialize)]
+pub struct ImportOutcome {
+    pub status: crate::sync::SyncStatus,
+    /// Name the skill ended up under — differs from `skill_name` on save-as-new.
+    pub skill_name: String,
+    pub message: String,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PullMode {
+    /// Refuse when the destination exists.
+    Refuse,
+    /// Replace the local copy, keeping a timestamped backup.
+    Overwrite,
+    /// Download alongside as `<name>@<tag>`.
+    SaveAsNew,
+}
+
+fn parse_pull_mode(mode: &str) -> PullMode {
+    match mode {
+        "overwrite" => PullMode::Overwrite,
+        "saveAsNew" => PullMode::SaveAsNew,
+        _ => PullMode::Refuse,
+    }
+}
+
+/// Pull a skill from a server into `my_skills/`, with three-way conflict
+/// handling against the sync baseline.
+///
+/// - only the server changed  -> pulled automatically, no prompt
+/// - only we changed          -> refused unless `mode` is overwrite/saveAsNew
+/// - both changed             -> the caller has to pick a mode explicitly
+/// - never synced before      -> same as both-changed; ask, do not guess
 #[tauri::command]
 pub async fn import_remote_skill(
     data_path: String,
     remote: RemoteInfo,
     remote_path: String,
     skill_name: String,
-) -> Result<String, String> {
+    platform_id: String,
+    mode: String,
+    variant_tag: String,
+) -> Result<ImportOutcome, String> {
     let skills_dir = Path::new(&data_path).join("my_skills");
-    let dest = skills_dir.join(&skill_name);
-    if dest.exists() {
-        return Err(format!("Skill '{}' already exists in my_skills directory.", skill_name));
-    }
     fs::create_dir_all(&skills_dir)
         .map_err(|e| format!("Failed to create skills directory: {}", e))?;
+
+    let dest = skills_dir.join(&skill_name);
+    let mode = parse_pull_mode(&mode);
 
     let (session, sftp) = connect_sftp(&remote, None).await?;
 
@@ -438,20 +496,261 @@ pub async fn import_remote_skill(
         if !remote_exists(&sftp, &src).await {
             return Err(format!("Remote skill directory does not exist: {}", src));
         }
-        download_dir(&sftp, &src, &dest).await
+
+        let remote_hash = crate::sync::hash_remote_dir(&sftp, &src).await?;
+        let baseline = crate::sync::load_state(&data_path)
+            .get(&skill_name)
+            .and_then(|platforms| platforms.get(&platform_id))
+            .cloned();
+
+        // `None` means the skill is not in the library at all yet.
+        let local_hash = if dest.exists() {
+            Some(crate::sync::hash_local_dir(&dest)?)
+        } else {
+            None
+        };
+
+        let status = match local_hash.as_deref() {
+            None => crate::sync::SyncStatus::NotImported,
+            Some(local) => crate::sync::decide(local, &remote_hash, baseline.as_ref()),
+        };
+
+        let target_name = match status {
+            crate::sync::SyncStatus::NotImported => skill_name.clone(),
+
+            // Nothing to transfer, but make sure a baseline exists for next time.
+            crate::sync::SyncStatus::InSync => {
+                if !platform_id.is_empty() {
+                    crate::sync::record_baseline(
+                        &data_path,
+                        &skill_name,
+                        &platform_id,
+                        &remote_hash,
+                    )?;
+                }
+                return Ok(ImportOutcome {
+                    status,
+                    skill_name: skill_name.clone(),
+                    message: format!("「{}」已是最新，无需导入。", skill_name),
+                });
+            }
+
+            // Only the server moved since we last synced the two sides.
+            crate::sync::SyncStatus::RemoteUpdated => skill_name.clone(),
+
+            crate::sync::SyncStatus::NoBaseline
+            | crate::sync::SyncStatus::LocalUpdated
+            | crate::sync::SyncStatus::Conflict => match mode {
+                PullMode::Overwrite => skill_name.clone(),
+                PullMode::SaveAsNew => {
+                    let tag = if variant_tag.trim().is_empty() {
+                        "remote".to_string()
+                    } else {
+                        variant_tag.trim().to_string()
+                    };
+                    crate::sync::variant_name(&skills_dir, &skill_name, &tag)
+                }
+                PullMode::Refuse => {
+                    return Err(match status {
+                        crate::sync::SyncStatus::NoBaseline => format!(
+                            "Skill '{}' already exists in my_skills directory.",
+                            skill_name
+                        ),
+                        crate::sync::SyncStatus::LocalUpdated => format!(
+                            "本地「{}」自上次同步后有过修改，拉取会覆盖这些改动。",
+                            skill_name
+                        ),
+                        _ => format!(
+                            "本地与服务器上的「{}」都有改动，存在冲突。",
+                            skill_name
+                        ),
+                    })
+                }
+            },
+        };
+
+        let dest_dir = skills_dir.join(&target_name);
+        let replaced = dest_dir.exists();
+        let backup = if replaced {
+            Some(crate::sync::backup_and_remove(&data_path, &dest_dir)?)
+        } else {
+            None
+        };
+
+        if let Err(e) = download_dir(&sftp, &src, &dest_dir).await {
+            if let Some(backup) = &backup {
+                crate::sync::restore_backup(backup, &dest_dir);
+                return Err(format!("{}（已回滚到原版本）", e));
+            }
+            let _ = fs::remove_dir_all(&dest_dir);
+            return Err(e);
+        }
+
+        if !platform_id.is_empty() {
+            crate::sync::record_baseline(&data_path, &target_name, &platform_id, &remote_hash)?;
+        }
+
+        let message = if target_name != skill_name {
+            format!("已将服务器上的「{}」另存为「{}」。", skill_name, target_name)
+        } else if replaced {
+            format!("已用服务器上的版本更新「{}」。", skill_name)
+        } else {
+            format!("已将「{}」导入到我的 Skills。", skill_name)
+        };
+
+        Ok(ImportOutcome {
+            status,
+            skill_name: target_name,
+            message,
+        })
     }
     .await;
 
     close_connection(session, sftp).await;
+    result
+}
 
-    match result {
-        Ok(()) => Ok(format!("Successfully imported skill {}", skill_name)),
-        Err(e) => {
-            // Clean up a partially downloaded skill so a retry starts fresh
-            let _ = fs::remove_dir_all(&dest);
-            Err(e)
+/// Compare every skill on a server against the local library and the sync
+/// baseline, so the UI can show what is stale instead of failing on click.
+#[derive(Serialize)]
+pub struct RemoteSkillOverview {
+    pub name: String,
+    pub description: Option<String>,
+    pub status: crate::sync::SyncStatus,
+    pub remote_hash: String,
+    pub local_hash: Option<String>,
+    pub last_synced_at: Option<u64>,
+}
+
+#[tauri::command]
+pub async fn get_remote_sync_overview(
+    data_path: String,
+    remote: RemoteInfo,
+    remote_path: String,
+    platform_id: String,
+) -> Result<Vec<RemoteSkillOverview>, String> {
+    let (session, sftp) = connect_sftp(&remote, None).await?;
+
+    let result = async {
+        let base = expand_remote_path(&sftp, &remote_path).await?;
+        if !remote_exists(&sftp, &base).await {
+            return Ok(Vec::new());
         }
+
+        let entries = sftp
+            .read_dir(&base)
+            .await
+            .map_err(|e| format!("Failed to read remote directory {}: {}", base, e))?;
+
+        let state = crate::sync::load_state(&data_path);
+        let skills_dir = Path::new(&data_path).join("my_skills");
+        let mut skills = Vec::new();
+
+        for entry in entries {
+            let name = entry.file_name();
+            if name == "." || name == ".." || name.starts_with('.') {
+                continue;
+            }
+            if !entry.file_type().is_dir() {
+                continue;
+            }
+
+            let rdir = format!("{}/{}", base.trim_end_matches('/'), name);
+            let remote_hash = crate::sync::hash_remote_dir(&sftp, &rdir).await?;
+
+            let description = read_remote_file(&sftp, &format!("{}/SKILL.md", rdir))
+                .await
+                .and_then(|content| crate::extract_description(&content));
+
+            let local_dir = skills_dir.join(&name);
+            let local_hash = if local_dir.exists() {
+                crate::sync::hash_local_dir(&local_dir).ok()
+            } else {
+                None
+            };
+
+            let baseline = state.get(&name).and_then(|p| p.get(&platform_id));
+            let status = match local_hash.as_deref() {
+                None => crate::sync::SyncStatus::NotImported,
+                Some(local) => crate::sync::decide(local, &remote_hash, baseline),
+            };
+
+            skills.push(RemoteSkillOverview {
+                name,
+                description,
+                status,
+                remote_hash,
+                local_hash,
+                last_synced_at: baseline.map(|b| b.synced_at),
+            });
+        }
+
+        skills.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(skills)
     }
+    .await;
+
+    close_connection(session, sftp).await;
+    result
+}
+
+#[derive(Serialize)]
+pub struct PushDrift {
+    pub platform_id: String,
+    pub skill_name: String,
+}
+
+/// Pre-flight for a push: report every (skill, remote platform) whose server
+/// copy has diverged from the last synced baseline. The caller confirms, then
+/// re-runs the push with `force`.
+///
+/// Connection failures are skipped here — the push itself reports them.
+#[tauri::command]
+pub async fn check_push_drift(
+    data_path: String,
+    skill_names: Vec<String>,
+    targets: Vec<crate::InstallTarget>,
+) -> Result<Vec<PushDrift>, String> {
+    let state = crate::sync::load_state(&data_path);
+    let mut drifts = Vec::new();
+
+    for target in targets.iter().filter(|t| t.remote.is_some()) {
+        let Some(remote) = target.remote.as_ref() else {
+            continue;
+        };
+        let Ok((session, sftp)) = connect_sftp(remote, None).await else {
+            continue;
+        };
+
+        if let Ok(base) = expand_remote_path(&sftp, &target.target_path).await {
+            for skill_name in &skill_names {
+                let Some(baseline) = state
+                    .get(skill_name)
+                    .and_then(|platforms| platforms.get(&target.platform_id))
+                else {
+                    continue; // never synced here: nothing to have drifted from
+                };
+
+                let rdir = format!("{}/{}", base.trim_end_matches('/'), skill_name);
+                if !remote_exists(&sftp, &rdir).await {
+                    continue; // gone from the server: a push is a fresh install
+                }
+
+                if let Ok(current) = crate::sync::hash_remote_dir(&sftp, &rdir).await {
+                    if current != baseline.hash {
+                        drifts.push(PushDrift {
+                            platform_id: target.platform_id.clone(),
+                            skill_name: skill_name.clone(),
+                        });
+                    }
+                }
+            }
+        }
+
+        close_connection(session, sftp).await;
+    }
+
+    Ok(drifts)
 }
 
 /// Guard against a skill name that would escape the skills base directory.

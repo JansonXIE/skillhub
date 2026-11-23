@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Server, RefreshCw, AlertCircle, Loader2, Download, Trash2 } from 'lucide-react';
+import { Server, RefreshCw, AlertCircle, Loader2, Download, Trash2, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
 import { EmptyState } from '../components/EmptyState';
@@ -11,10 +11,38 @@ import {
   type PlatformConfig
 } from '../config/platforms';
 
-interface RemoteSkillInfo {
+/** Mirrors the Rust `SyncStatus` enum (serde camelCase). */
+type SyncStatus =
+  | 'notImported'
+  | 'noBaseline'
+  | 'inSync'
+  | 'remoteUpdated'
+  | 'localUpdated'
+  | 'conflict';
+
+interface RemoteSkillOverview {
   name: string;
   description: string | null;
+  status: SyncStatus;
+  remote_hash: string;
+  local_hash: string | null;
+  last_synced_at: number | null;
 }
+
+interface ImportOutcome {
+  status: SyncStatus;
+  skill_name: string;
+  message: string;
+}
+
+const STATUS_META: Record<SyncStatus, { label: string; color: string; background: string }> = {
+  notImported: { label: '未导入', color: '#64748b', background: '#f1f5f9' },
+  noBaseline: { label: '未同步', color: '#64748b', background: '#f1f5f9' },
+  inSync: { label: '已同步', color: '#15803d', background: '#dcfce7' },
+  remoteUpdated: { label: '服务器有更新', color: '#1d4ed8', background: '#dbeafe' },
+  localUpdated: { label: '本地有更新', color: '#c2410c', background: '#ffedd5' },
+  conflict: { label: '冲突', color: '#b91c1c', background: '#fee2e2' },
+};
 
 function loadRemotePlatform(platformId: string | undefined): PlatformConfig | null {
   if (!platformId) return null;
@@ -29,23 +57,34 @@ function loadRemotePlatform(platformId: string | undefined): PlatformConfig | nu
   }
 }
 
+async function resolveDataPath(): Promise<string> {
+  const stored = localStorage.getItem('skillhub-data-path');
+  if (stored) return stored;
+  const baseDir = await appDataDir();
+  return join(baseDir, 'SkillsHub');
+}
+
 export function RemoteSkills() {
   const { platformId } = useParams();
   const [platform, setPlatform] = useState<PlatformConfig | null>(null);
-  const [skills, setSkills] = useState<RemoteSkillInfo[]>([]);
+  const [skills, setSkills] = useState<RemoteSkillOverview[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [importing, setImporting] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState<Set<string>>(new Set());
+  const [conflictSkill, setConflictSkill] = useState<RemoteSkillOverview | null>(null);
 
   const fetchRemoteSkills = async (target: PlatformConfig) => {
     if (!target.remote) return;
     setLoading(true);
     setError('');
     try {
-      const result = await invoke<RemoteSkillInfo[]>('list_remote_skills', {
+      const dataPath = await resolveDataPath();
+      const result = await invoke<RemoteSkillOverview[]>('get_remote_sync_overview', {
+        dataPath,
         remote: remoteToPayload(target.remote),
         remotePath: target.remote.remotePath,
+        platformId: target.id,
       });
       setSkills(result);
     } catch (err) {
@@ -66,35 +105,67 @@ export function RemoteSkills() {
     }
   }, [platformId]);
 
-  const handleImport = async (e: React.MouseEvent, skillName: string) => {
-    e.stopPropagation();
-    if (!platform?.remote || importing.has(skillName)) return;
+  const runPull = async (skill: RemoteSkillOverview, mode: 'refuse' | 'overwrite' | 'saveAsNew') => {
+    if (!platform?.remote) return;
 
-    setImporting(prev => new Set(prev).add(skillName));
+    setImporting(prev => new Set(prev).add(skill.name));
     try {
-      let dataPath = localStorage.getItem('skillhub-data-path');
-      if (!dataPath) {
-        const baseDir = await appDataDir();
-        dataPath = await join(baseDir, 'SkillsHub');
-      }
-
-      await invoke<string>('import_remote_skill', {
+      const dataPath = await resolveDataPath();
+      const outcome = await invoke<ImportOutcome>('import_remote_skill', {
         dataPath,
         remote: remoteToPayload(platform.remote),
         remotePath: platform.remote.remotePath,
-        skillName,
+        skillName: skill.name,
+        platformId: platform.id,
+        mode,
+        // Used by saveAsNew to build `<name>@<tag>`
+        variantTag: platform.name,
       });
 
       window.dispatchEvent(new CustomEvent('skills-updated'));
-      alert(`已将「${skillName}」导入到我的 Skills。`);
+      alert(outcome.message);
+      await fetchRemoteSkills(platform);
     } catch (err) {
-      alert(`导入失败: ${err}`);
+      alert(`拉取失败: ${err}`);
     } finally {
       setImporting(prev => {
         const next = new Set(prev);
-        next.delete(skillName);
+        next.delete(skill.name);
         return next;
       });
+    }
+  };
+
+  const handlePull = async (e: React.MouseEvent, skill: RemoteSkillOverview) => {
+    e.stopPropagation();
+    if (!platform?.remote || importing.has(skill.name)) return;
+
+    switch (skill.status) {
+      case 'notImported':
+        // Nothing to lose locally.
+        return runPull(skill, 'refuse');
+
+      case 'inSync':
+        alert(`「${skill.name}」与服务器上的一致，无需拉取。`);
+        return;
+
+      case 'remoteUpdated':
+        // Only the server moved since the last sync — pull without asking.
+        return runPull(skill, 'refuse');
+
+      case 'localUpdated': {
+        const confirmed = window.confirm(
+          `本地「${skill.name}」自上次同步后有过修改，拉取会用服务器上的版本覆盖这些改动。\n\n确定继续？`
+        );
+        return confirmed ? runPull(skill, 'overwrite') : undefined;
+      }
+
+      case 'noBaseline':
+      case 'conflict':
+      default:
+        // Both sides carry changes, or we have no record of a previous sync:
+        // the user picks what happens.
+        setConflictSkill(skill);
     }
   };
 
@@ -172,7 +243,7 @@ export function RemoteSkills() {
       {loading ? (
         <div className="flex items-center justify-center p-12 text-secondary" style={{ gap: '8px' }}>
           <Loader2 size={18} className="animate-spin" />
-          正在连接 {platform.remote.host} ...
+          正在连接 {platform.remote.host} 并比对内容 ...
         </div>
       ) : error ? (
         <div
@@ -202,45 +273,131 @@ export function RemoteSkills() {
         />
       ) : (
         <div className="skills-grid">
-          {skills.map((skill) => (
-            <div key={skill.name} className="skill-card" style={{ cursor: 'default' }}>
-              <div className="skill-card-header">
-                <div className="skill-card-icon">
-                  {skill.name.charAt(0).toUpperCase()}
+          {skills.map((skill) => {
+            const meta = STATUS_META[skill.status];
+            return (
+              <div key={skill.name} className="skill-card" style={{ cursor: 'default' }}>
+                <div className="skill-card-header">
+                  <div className="skill-card-icon">
+                    {skill.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="skill-card-actions" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className="skill-action-btn focus:outline-none"
+                      title={
+                        skill.status === 'inSync'
+                          ? '与服务器一致'
+                          : skill.status === 'remoteUpdated'
+                            ? '拉取服务器上的更新'
+                            : '拉取到我的 Skills'
+                      }
+                      style={{ outline: 'none' }}
+                      disabled={importing.has(skill.name)}
+                      onClick={(e) => handlePull(e, skill)}
+                    >
+                      {importing.has(skill.name)
+                        ? <Loader2 size={14} className="animate-spin" />
+                        : <Download size={14} />}
+                    </button>
+                    <button
+                      className="skill-action-btn focus:outline-none"
+                      title="从服务器删除"
+                      style={{ outline: 'none' }}
+                      disabled={deleting.has(skill.name)}
+                      onClick={(e) => handleDelete(e, skill.name)}
+                    >
+                      {deleting.has(skill.name)
+                        ? <Loader2 size={14} className="animate-spin" />
+                        : <Trash2 size={14} />}
+                    </button>
+                  </div>
                 </div>
-                <div className="skill-card-actions" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    className="skill-action-btn focus:outline-none"
-                    title="导入到我的 Skills"
-                    style={{ outline: 'none' }}
-                    disabled={importing.has(skill.name)}
-                    onClick={(e) => handleImport(e, skill.name)}
+
+                <h3 className="skill-card-title">{skill.name}</h3>
+
+                <p className="skill-card-desc">
+                  {skill.description || '暂无描述'}
+                </p>
+
+                <div style={{ marginTop: '10px' }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: meta.color,
+                      backgroundColor: meta.background,
+                    }}
                   >
-                    {importing.has(skill.name)
-                      ? <Loader2 size={14} className="animate-spin" />
-                      : <Download size={14} />}
-                  </button>
-                  <button
-                    className="skill-action-btn focus:outline-none"
-                    title="从服务器删除"
-                    style={{ outline: 'none' }}
-                    disabled={deleting.has(skill.name)}
-                    onClick={(e) => handleDelete(e, skill.name)}
-                  >
-                    {deleting.has(skill.name)
-                      ? <Loader2 size={14} className="animate-spin" />
-                      : <Trash2 size={14} />}
-                  </button>
+                    {meta.label}
+                  </span>
                 </div>
               </div>
+            );
+          })}
+        </div>
+      )}
 
-              <h3 className="skill-card-title">{skill.name}</h3>
+      {conflictSkill && platform.remote && (
+        <div className="modal-overlay active" onClick={() => setConflictSkill(null)}>
+          <div
+            className="modal-container fade-in"
+            style={{ maxWidth: '520px' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="modal-header" style={{ padding: '20px 24px' }}>
+              <div className="flex items-center justify-between w-full">
+                <h3 className="modal-title" style={{ fontSize: '1.125rem', fontWeight: 700 }}>
+                  如何处理「{conflictSkill.name}」？
+                </h3>
+                <button className="modal-close-btn" style={{ outline: 'none' }} onClick={() => setConflictSkill(null)}>
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
 
-              <p className="skill-card-desc">
-                {skill.description || '暂无描述'}
+            <div className="modal-body" style={{ padding: '0 24px 20px 24px' }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.6, textAlign: 'left' }}>
+                {conflictSkill.status === 'conflict'
+                  ? '本地与服务器上的版本自上次同步后都有改动，无法自动判断该保留哪一份。'
+                  : '本地已存在同名技能，但没有同步记录，无法判断哪一份更新。'}
               </p>
             </div>
-          ))}
+
+            <div className="modal-footer" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--color-border)' }}>
+              <button
+                className="btn btn-secondary"
+                style={{ outline: 'none', padding: '8px 20px', borderRadius: '8px', fontSize: '0.875rem' }}
+                onClick={() => setConflictSkill(null)}
+              >
+                取消
+              </button>
+              <button
+                className="btn btn-secondary"
+                style={{ outline: 'none', padding: '8px 20px', borderRadius: '8px', fontSize: '0.875rem' }}
+                onClick={() => {
+                  const skill = conflictSkill;
+                  setConflictSkill(null);
+                  runPull(skill, 'saveAsNew');
+                }}
+              >
+                另存为 {conflictSkill.name}@{platform.name}
+              </button>
+              <button
+                className="btn btn-primary"
+                style={{ outline: 'none', padding: '8px 20px', borderRadius: '8px', fontSize: '0.875rem' }}
+                onClick={() => {
+                  const skill = conflictSkill;
+                  setConflictSkill(null);
+                  runPull(skill, 'overwrite');
+                }}
+              >
+                用服务器版本覆盖
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -253,10 +253,36 @@ export function SkillDetail() {
  ))
  .filter((t): t is InstallTargetPayload => t !== null);
 
+ // Someone may have edited this skill directly on a server since the last
+ // sync; confirm before pushing over that work.
+ let force = false;
+ try {
+ const drifts = await invoke<Array<{ platform_id: string; skill_name: string }>>('check_push_drift', {
+ dataPath,
+ skillNames: [skillName],
+ targets
+ });
+ if (drifts.length > 0) {
+ const names = Array.from(new Set(drifts.map(d => d.platform_id)))
+ .map(id => allPlatforms.find(p => p.id === id)?.name ?? id);
+ const confirmed = window.confirm(
+ `服务器上的「${skillName}」自上次同步后已被修改（${names.join('、')}）。\n\n继续安装会用本地版本覆盖服务器上的改动。确定继续？`
+ );
+ if (!confirmed) {
+ setInstalling(false);
+ return;
+ }
+ force = true;
+ }
+ } catch (e) {
+ console.error('Failed to check push drift', e);
+ }
+
  const result = await invoke('batch_install_skill', {
  dataPath,
  skillName,
- targets
+ targets,
+ force
  });
 
  alert(`安装成功:\n${result}`);

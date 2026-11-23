@@ -32,6 +32,12 @@ interface BatchSyncModalProps {
  onSyncComplete?: () => void;
 }
 
+/** Mirrors the Rust `ssh::PushDrift` struct. */
+interface PushDrift {
+ platform_id: string;
+ skill_name: string;
+}
+
 export function BatchSyncModal({ isOpen, onClose, selectedSkillNames, onSyncComplete }: BatchSyncModalProps) {
  const navigate = useNavigate();
  const [platformSettings, setPlatformSettings] = useState<UserPlatformSettings>(DEFAULT_USER_SETTINGS);
@@ -145,6 +151,34 @@ export function BatchSyncModal({ isOpen, onClose, selectedSkillNames, onSyncComp
  dataPath = await join(baseDir, 'SkillsHub');
  }
 
+ // Someone may have edited these skills directly on the servers since the
+ // last sync. Ask before pushing over that work.
+ let force = false;
+ try {
+ const drifts = await invoke<PushDrift[]>('check_push_drift', {
+ dataPath,
+ skillNames: selectedSkillNames,
+ targets
+ });
+ if (drifts.length > 0) {
+ const names = Array.from(new Set(drifts.map(d => d.platform_id)))
+ .map(id => latestPlatforms.find(p => p.id === id)?.name ?? id);
+ const affected = Array.from(new Set(drifts.map(d => d.skill_name))).join('、');
+ const confirmed = window.confirm(
+ `以下服务器上的 skill 自上次同步后已被修改：\n\n平台：${names.join('、')}\n技能：${affected}\n\n继续同步会用本地版本覆盖服务器上的这些改动。确定继续？`
+ );
+ if (!confirmed) {
+ setIsSyncing(false);
+ return;
+ }
+ force = true;
+ }
+ } catch (e) {
+ // A failed pre-check must not block the push; the backend still refuses
+ // targets whose server copy drifted.
+ console.error('Failed to check push drift', e);
+ }
+
  let successCount =0;
  let errorList: string[] = [];
 
@@ -156,7 +190,8 @@ export function BatchSyncModal({ isOpen, onClose, selectedSkillNames, onSyncComp
  await invoke('batch_install_skill', {
  dataPath,
  skillName,
- targets
+ targets,
+ force
  });
  successCount++;
  } catch (err) {
